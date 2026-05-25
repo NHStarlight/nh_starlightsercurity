@@ -43,7 +43,6 @@ export default {
             return;
         }
 
-        // Đưa targetUser ra ngoài phạm vi try-catch để khối catch bên dưới có thể đọc được dữ liệu nếu lỗi
         let targetUser = null;
         let filterType = 'all';
 
@@ -60,14 +59,14 @@ export default {
 
             const cases = await getModerationCases(interaction.guild.id, filters);
 
-            // Xử lý trực tiếp trường hợp mảng rỗng hoặc không tìm thấy dữ liệu vi phạm
+            // ĐỒNG BỘ TIẾNG ANH: Sửa thông báo kết quả trống thành "No cases found" chuẩn chỉ
             if (!cases || cases.length === 0) {
-                const noCaseDesc = targetUser 
-                    ? `Không tìm thấy case vi phạm nào của người dùng **${targetUser.tag}** (ID: ${targetUser.id}) trong hệ thống.`
-                    : `Không tìm thấy bất kỳ dữ liệu vi phạm nào thuộc loại danh mục "${filterType === 'all' ? 'Tất cả' : filterType}" trong server này.`;
-
+                const noCaseMessage = targetUser 
+                    ? `No cases found for user ${targetUser.tag} (ID: ${targetUser.id}).`
+                    : `No cases found for filter "${filterType === 'all' ? 'All' : filterType}" in this server.`;
+                
                 return InteractionHelper.safeEditReply(interaction, {
-                    embeds: [errorEmbed('📋 Kết quả tra cứu', noCaseDesc)],
+                    embeds: [errorEmbed('📋 No cases found', noCaseMessage)],
                     flags: MessageFlags.Ephemeral
                 });
             }
@@ -173,21 +172,18 @@ export default {
                         components: [disabledRow]
                     });
                 } catch (error) {
-                    // Tránh lỗi sập bot khi tin nhắn đã bị xóa trước khi bộ đếm kết thúc
+                    // Bỏ qua lỗi nếu tin nhắn bị xóa trước khi collector hết hạn
                 }
             });
 
         } catch (error) {
-            // Tối ưu khối catch: Log chi tiết lỗi ra console của Railway để tiện theo dõi
             logger.error('Error in cases command:', error);
-
-            const errDesc = targetUser 
-                ? `Không tìm thấy dữ liệu vi phạm của **${targetUser.tag}** (ID: ${targetUser.id}). Hệ thống phản hồi: ${error.message || error}`
-                : `Không tìm thấy lịch sử vi phạm nào trong máy chủ hoặc hệ thống đang gặp sự cố kết nối Database.`;
-
             return InteractionHelper.safeEditReply(interaction, {
                 embeds: [
-                    errorEmbed('📋 Thông tin tra cứu', errDesc)
+                    errorEmbed(
+                        'System Error',
+                        'An error occurred while retrieving moderation cases. Please try again later.'
+                    )
                 ],
                 flags: MessageFlags.Ephemeral
             });
