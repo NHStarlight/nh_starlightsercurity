@@ -5,7 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
     data: new SlashCommandBuilder()
         .setName("lock")
-        .setDescription("Lock the channel for EVERYONE and all specific roles")
+        .setDescription("Lock the channel for all roles")
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
     async execute(interaction, config, client) {
@@ -14,28 +14,29 @@ export default {
         const guild = interaction.guild;
 
         try {
-            // Lấy tất cả các role/user đang có quyền trong kênh
             const overwrites = channel.permissionOverwrites.cache;
-
-            // Chạy vòng lặp để khóa từng đối tượng một
-            const tasks = overwrites.map(o => 
-                channel.permissionOverwrites.edit(o.id, { SendMessages: false })
-            );
-
-            // Đảm bảo @everyone cũng bị khóa
-            tasks.push(channel.permissionOverwrites.edit(guild.roles.everyone.id, { SendMessages: false }));
-
-            await Promise.all(tasks);
+            
+            // Tạo danh sách các ID cần xử lý
+            const roleIds = [...overwrites.keys(), guild.roles.everyone.id];
+            
+            // Xử lý từng role một, dùng try-catch bên trong để tránh làm chết cả lệnh
+            for (const id of roleIds) {
+                try {
+                    await channel.permissionOverwrites.edit(id, { SendMessages: false });
+                } catch (e) {
+                    console.log(`Skipping role ${id}:`, e.message);
+                }
+            }
 
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [successEmbed("🔒 Locked: Everyone and specific roles can no longer send messages.")],
+                embeds: [successEmbed("🔒 Channel locked successfully.")],
                 flags: MessageFlags.Ephemeral,
             });
 
         } catch (error) {
-            console.error("Lock error:", error);
+            console.error("Critical lock error:", error);
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [errorEmbed("Error", "Failed to lock channel.")],
+                embeds: [errorEmbed("Error", "Failed to process lock command.")],
             });
         }
     }
