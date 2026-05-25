@@ -3,6 +3,7 @@ import { createEmbed, errorEmbed, successEmbed } from '../../utils/embeds.js';
 import { getModerationCases } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+
 export default {
     data: new SlashCommandBuilder()
         .setName('cases')
@@ -44,22 +45,26 @@ export default {
 
         try {
             const filterType = interaction.options.getString('filter') || 'all';
+            // ĐÃ SỬA: Lấy đúng tên option là 'user' như định nghĩa ở trên data
             const targetUser = interaction.options.getUser('user');
             const limit = interaction.options.getInteger('limit') || 10;
 
             const filters = {
                 limit,
                 action: filterType === 'all' ? undefined : filterType,
-                userId: targetUser?.id
+                userId: targetUser?.id // Lấy ID dạng số truyền vào bộ lọc database
             };
 
             const cases = await getModerationCases(interaction.guild.id, filters);
 
-            if (cases.length === 0) {
-                throw new Error(targetUser 
-                    ? `No moderation cases found for ${targetUser.tag}`
-                    : `No ${filterType === 'all' ? '' : filterType} cases found in this server.`
-                );
+            // ĐÃ SỬA: Sửa lại logic kiểm tra nếu không có case vi phạm nào
+            if (!cases || cases.length === 0) {
+                const noCaseMessage = targetUser 
+                    ? `Không tìm thấy case vi phạm nào của người dùng có ID: ${targetUser.id}`
+                    : `Không tìm thấy cases thuộc loại "${filterType === 'all' ? 'Tất cả' : filterType}" nào trong server này.`;
+                
+                // Ném lỗi ra log của Railway như bạn muốn để debug dễ dàng
+                throw new Error(noCaseMessage);
             }
 
             const CASES_PER_PAGE = 5;
@@ -126,7 +131,7 @@ export default {
 
             const collector = message.createMessageComponentCollector({
                 componentType: ComponentType.Button,
-time: 120000
+                time: 120000
             });
 
             collector.on('collect', async (buttonInteraction) => {
@@ -163,16 +168,17 @@ time: 120000
                         components: [disabledRow]
                     });
                 } catch (error) {
+                    // Bỏ qua lỗi nếu tin nhắn đã bị xóa trước đó
                 }
             });
 
         } catch (error) {
-            logger.error('Error in cases command:', error);
+            logger.error('Error in cases command:', error.message || error);
             return InteractionHelper.safeEditReply(interaction, {
                 embeds: [
                     errorEmbed(
                         'System Error',
-                        'An error occurred while retrieving moderation cases. Please try again later.'
+                        error.message || 'An error occurred while retrieving moderation cases. Please try again later.'
                     )
                 ],
                 flags: MessageFlags.Ephemeral
@@ -180,7 +186,3 @@ time: 120000
         }
     }
 };
-
-
-
-
