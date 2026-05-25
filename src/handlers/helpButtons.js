@@ -1,50 +1,54 @@
-export const helpBugReportButton = {
-    name: BUG_REPORT_BUTTON_ID,
-    async execute(interaction, client) {
-        // 1. Tạo nút Link (chỉ dùng để mở link)
-        const contactButton = new ButtonBuilder()
-            .setLabel('💬 Contact Developer')
-            .setStyle(ButtonStyle.Link)
-            .setURL('https://discord.com/users/1198136184526864475');
+import { SlashCommandBuilder, ActionRowBuilder } from "discord.js";
+import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { createEmbed } from "../../utils/embeds.js";
+import { createSelectMenu } from "../../utils/components.js";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 
-        const bugRow = new ActionRowBuilder().addComponents(contactButton);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-        // 2. Tạo Embed thông báo
-        const bugReportEmbed = createEmbed({
-            title: '🐞 Report Bug / Contact',
-            description: 'Found a bug or have a suggestion? Please contact the developer directly!\n\n' +
-                '**When reporting, please include:**\n' +
-                '• 📝 Detailed description of the issue\n' +
-                '• 📋 Steps to reproduce the problem\n' +
-                '• 📸 Screenshots if applicable\n\n' +
-                'I will get back to you as soon as possible!',
-            color: 'primary'
-        });
-        
-        bugReportEmbed.setFooter({
-            text: 'Starlight Security System',
-            iconURL: client.user.displayAvatarURL()
-        });
-        bugReportEmbed.setTimestamp();
+const CATEGORY_SELECT_ID = "help-category-select";
+const ALL_COMMANDS_ID = "help-all-commands";
 
-        // 3. Phản hồi an toàn
-        // Sử dụng followUp nếu interaction đã được xử lý (acknowledged)
-        try {
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({
-                    embeds: [bugReportEmbed],
-                    components: [bugRow],
-                    flags: MessageFlags.Ephemeral
-                });
-            } else {
-                await interaction.reply({
-                    embeds: [bugReportEmbed],
-                    components: [bugRow],
-                    flags: MessageFlags.Ephemeral
-                });
-            }
-        } catch (error) {
-            console.error('Interaction error:', error);
-        }
+export async function createInitialHelpMenu(client) {
+    const commandsPath = path.join(__dirname, "../../commands");
+    const categoryDirs = (await fs.readdir(commandsPath, { withFileTypes: true }))
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name)
+        .sort();
+
+    const options = [{ label: "📋 All Commands", description: "View all commands", value: ALL_COMMANDS_ID },
+        ...categoryDirs.map((category) => ({
+            label: `📁 ${category.charAt(0).toUpperCase() + category.slice(1)}`,
+            description: `View ${category} commands`,
+            value: category
+        }))
+    ];
+
+    const embed = createEmbed({ 
+        title: `🤖 Starlight Security`,
+        description: "Welcome! Use the menu below to navigate through my commands.",
+        color: 'primary'
+    });
+
+    embed.setFooter({ text: "Starlight Security | Secure & Professional" });
+    embed.setTimestamp();
+
+    const selectRow = createSelectMenu(CATEGORY_SELECT_ID, "Select a category to view commands", options);
+
+    return {
+        embeds: [embed],
+        components: [selectRow], // Chỉ để lại select menu, xóa bỏ buttonRow
+    };
+}
+
+export default {
+    data: new SlashCommandBuilder().setName("help").setDescription("Displays the help menu"),
+    async execute(interaction, guildConfig, client) {
+        await InteractionHelper.safeDefer(interaction);
+        const { embeds, components } = await createInitialHelpMenu(client);
+        await InteractionHelper.safeEditReply(interaction, { embeds, components });
     },
 };
