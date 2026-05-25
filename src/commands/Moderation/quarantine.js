@@ -12,8 +12,8 @@ const loadData = () => {
 export default {
     data: new SlashCommandBuilder()
         .setName('quarantine')
-        .setDescription('Quarantine một thành viên')
-        .addUserOption(option => option.setName('user').setDescription('Thành viên cần quarantine').setRequired(true)),
+        .setDescription('Quarantine a member')
+        .addUserOption(option => option.setName('user').setDescription('member need to quarantine').setRequired(true)),
     
     async execute(interaction) {
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) return;
@@ -29,6 +29,6 @@ export default {
         fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 
         await member.roles.set([quarantineRole.id]);
-        await interaction.reply({ content: `Đã quarantine ${member.user.tag}.`, ephemeral: true });
+        await interaction.reply({ content: `success quarantine ${member.user.tag}.`, ephemeral: true });
     }
 };
