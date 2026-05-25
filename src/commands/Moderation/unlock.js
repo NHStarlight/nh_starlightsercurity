@@ -5,27 +5,28 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
     data: new SlashCommandBuilder()
         .setName("unlock")
-        .setDescription("Unlock the channel instantly")
+        .setDescription("Unlock the channel for EVERYONE and all specific roles")
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
     async execute(interaction, config, client) {
         await InteractionHelper.safeDefer(interaction);
         const channel = interaction.channel;
+        const guild = interaction.guild;
 
         try {
-            // 1. Loại bỏ quyền chặn chat (SendMessages = null) cho tất cả role
-            const newOverwrites = channel.permissionOverwrites.cache.map(o => ({
-                id: o.id,
-                allow: o.allow.remove(PermissionFlagsBits.SendMessages),
-                deny: o.deny.remove(PermissionFlagsBits.SendMessages)
-            }));
+            const overwrites = channel.permissionOverwrites.cache;
 
-            // 2. Cập nhật toàn bộ trong 1 lần duy nhất
-            await channel.permissionOverwrites.set(newOverwrites);
+            // Xóa quyền (set null) để trả về trạng thái mặc định cho từng đối tượng
+            const tasks = overwrites.map(o => 
+                channel.permissionOverwrites.edit(o.id, { SendMessages: null })
+            );
 
-            await channel.send({ embeds: [successEmbed("🔓 Channel unlocked instantly.")] });
+            tasks.push(channel.permissionOverwrites.edit(guild.roles.everyone.id, { SendMessages: null }));
+
+            await Promise.all(tasks);
+
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [successEmbed("🔓 Channel unlocked successfully.")],
+                embeds: [successEmbed("🔓 Unlocked: All restrictions removed.")],
                 flags: MessageFlags.Ephemeral,
             });
 
