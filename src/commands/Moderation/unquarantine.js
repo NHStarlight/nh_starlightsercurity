@@ -1,30 +1,33 @@
 import { SlashCommandBuilder, PermissionsBitField } from 'discord.js';
+import { pool } from '../../config/db.js';
 
 export default {
     data: new SlashCommandBuilder()
         .setName('unquarantine')
-        .setDescription('Remove quarantine role from a member')
+        .setDescription('Remove quarantine and restore user roles')
         .addUserOption(option => option.setName('user').setDescription('The user to unquarantine').setRequired(true)),
     
     async execute(interaction) {
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-            return interaction.reply({ content: 'Missing permissions!', ephemeral: true });
-        }
-
-        const member = interaction.options.getMember('user');
-        const quarantineRole = interaction.guild.roles.cache.find(r => r.name === 'Quarantine');
+        const target = interaction.options.getMember('user');
         
-        if (!quarantineRole) {
-            return interaction.reply({ content: 'Quarantine role not found!', ephemeral: true });
-        }
-
         try {
-            // Remove the Quarantine role
-            await member.roles.remove(quarantineRole);
-            await interaction.reply({ content: `User ${member.user.tag} has been unquarantined.`, ephemeral: true });
+            // Retrieve roles from PostgreSQL
+            const res = await pool.query('SELECT roles FROM user_roles WHERE user_id = $1', [target.id]);
+
+            if (res.rows.length === 0) {
+                return interaction.reply({ content: 'No saved roles found for this user.', ephemeral: true });
+            }
+
+            const oldRoles = res.rows[0].roles;
+
+            // Restore roles and remove quarantine role
+            await target.roles.set(oldRoles);
+            await pool.query('DELETE FROM user_roles WHERE user_id = $1', [target.id]);
+
+            await interaction.reply({ content: `Successfully restored roles for ${target.user.tag}.`, ephemeral: true });
         } catch (error) {
             console.error(error);
-            await interaction.reply({ content: 'Failed to unquarantine the user.', ephemeral: true });
+            await interaction.reply({ content: 'An error occurred while restoring roles.', ephemeral: true });
         }
     }
 };
