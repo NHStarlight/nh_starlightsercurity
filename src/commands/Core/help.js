@@ -1,4 +1,4 @@
-﻿import {
+import {
     SlashCommandBuilder,
     ActionRowBuilder,
     ButtonBuilder,
@@ -40,10 +40,6 @@ const CATEGORY_ICONS = {
     Config: "⚙️",
 };
 
-
-
-
-
 export async function createInitialHelpMenu(client) {
     const commandsPath = path.join(__dirname, "../../commands");
     const categoryDirs = (
@@ -72,110 +68,38 @@ export async function createInitialHelpMenu(client) {
         }),
     ];
 
-    const botName = client?.user?.username || "Bot";
+    const botName = client?.user?.username || "Starlight Security";
     const embed = createEmbed({ 
         title: `🤖 ${botName} Help Center`,
-        description: "Your all-in-one Discord companion for moderation, economy, fun, and server management.",
+        description: "Welcome to Starlight Security! Your all-in-one companion for server protection and management.",
         color: 'primary'
     });
 
     embed.addFields(
-        {
-            name: "🛡️ **Moderation**",
-            value: "Server moderation, user management, and enforcement tools",
-            inline: true
-        },
-        {
-            name: "💰 **Economy**",
-            value: "Currency system, shops, and virtual economy",
-            inline: true
-        },
-        {
-            name: "🎮 **Fun**",
-            value: "Games, entertainment, and interactive commands",
-            inline: true
-        },
-        {
-            name: "📊 **Leveling**",
-            value: "User levels, XP system, and progression tracking",
-            inline: true
-        },
-        {
-            name: "🎫 **Tickets**",
-            value: "Support ticket system for server management",
-            inline: true
-        },
-        {
-            name: "🎉 **Giveaways**",
-            value: "Automated giveaway management and distribution",
-            inline: true
-        },
-        {
-            name: "👋 **Welcome**",
-            value: "Member welcome messages and onboarding",
-            inline: true
-        },
-        {
-            name: "🎂 **Birthdays**",
-            value: "Birthday tracking and celebration features",
-            inline: true
-        },
-        {
-            name: "👥 **Community**",
-            value: "Community tools, applications, and member engagement",
-            inline: true
-        },
-        {
-            name: "⚙️ **Config**",
-            value: "Server and bot configuration management commands",
-            inline: true
-        },
-        {
-            name: "🔢 **Counter**",
-            value: "Live counter channel setup and counter controls",
-            inline: true
-        },
-        {
-            name: "🎙️ **Join to Create**",
-            value: "Dynamic voice channel creation and management",
-            inline: true
-        },
-        {
-            name: "🎭 **Reaction Roles**",
-            value: "Self-assignable roles using reaction-role systems",
-            inline: true
-        },
-        {
-            name: "✅ **Verification**",
-            value: "Member verification workflows and access gating",
-            inline: true
-        },
-        {
-            name: "🔧 **Utilities**",
-            value: "Useful tools and server utilities",
-            inline: true
-        }
+        { name: "🛡️ **Moderation**", value: "Server moderation, user management, and enforcement tools", inline: true },
+        { name: "💰 **Economy**", value: "Currency system, shops, and virtual economy", inline: true },
+        { name: "🎮 **Fun**", value: "Games, entertainment, and interactive commands", inline: true },
+        { name: "📊 **Leveling**", value: "User levels, XP system, and progression tracking", inline: true },
+        { name: "🎫 **Tickets**", value: "Support ticket system for server management", inline: true },
+        { name: "🎉 **Giveaways**", value: "Automated giveaway management and distribution", inline: true },
+        { name: "👋 **Welcome**", value: "Member welcome messages and onboarding", inline: true },
+        { name: "🎂 **Birthdays**", value: "Birthday tracking and celebration features", inline: true },
+        { name: "👥 **Community**", value: "Community tools, applications, and member engagement", inline: true },
+        { name: "⚙️ **Config**", value: "Server and bot configuration management commands", inline: true },
+        { name: "🔢 **Counter**", value: "Live counter channel setup and counter controls", inline: true },
+        { name: "🎙️ **Join to Create**", value: "Dynamic voice channel creation and management", inline: true },
+        { name: "🎭 **Reaction Roles**", value: "Self-assignable roles using reaction-role systems", inline: true },
+        { name: "✅ **Verification**", value: "Member verification workflows and access gating", inline: true },
+        { name: "🔧 **Utilities**", value: "Useful tools and server utilities", inline: true }
     );
 
-    embed.setFooter({ 
-        text: "Made with ❤️" 
-    });
+    embed.setFooter({ text: "Starlight Security | Secured by Dev" });
     embed.setTimestamp();
 
     const bugReportButton = new ButtonBuilder()
         .setCustomId(BUG_REPORT_BUTTON_ID)
-        .setLabel("Report Bug")
-        .setStyle(ButtonStyle.Danger);
-
-    const supportButton = new ButtonBuilder()
-        .setLabel("Support Server")
-        .setURL("https://discord.gg/QnWNz2dKCE")
-        .setStyle(ButtonStyle.Link);
-
-    const touchpointButton = new ButtonBuilder()
-        .setLabel("Learn from Touchpoint")
-        .setURL("https://www.youtube.com/@TouchDisc")
-        .setStyle(ButtonStyle.Link);
+        .setLabel("Contact Developer")
+        .setStyle(ButtonStyle.Primary);
 
     const selectRow = createSelectMenu(
         CATEGORY_SELECT_ID,
@@ -185,8 +109,6 @@ export async function createInitialHelpMenu(client) {
 
     const buttonRow = new ActionRowBuilder().addComponents([
         bugReportButton,
-        supportButton,
-        touchpointButton,
     ]);
 
     return {
@@ -201,10 +123,7 @@ export default {
         .setDescription("Displays the help menu with all available commands"),
 
     async execute(interaction, guildConfig, client) {
-        
-        const { MessageFlags } = await import('discord.js');
         await InteractionHelper.safeDefer(interaction);
-        
         const { embeds, components } = await createInitialHelpMenu(client);
 
         await InteractionHelper.safeEditReply(interaction, {
@@ -219,16 +138,11 @@ export default {
                     description: "Help menu has been closed, use /help again.",
                     color: "secondary",
                 });
-
                 await InteractionHelper.safeEditReply(interaction, {
                     embeds: [closedEmbed],
                     components: [],
                 });
-            } catch (error) {
-                
-            }
+            } catch (error) {}
         }, HELP_MENU_TIMEOUT_MS);
     },
 };
-
-
