@@ -1,13 +1,15 @@
 export const helpBugReportButton = {
     name: BUG_REPORT_BUTTON_ID,
     async execute(interaction, client) {
+        // 1. Tạo nút Link (chỉ dùng để mở link)
         const contactButton = new ButtonBuilder()
             .setLabel('💬 Contact Developer')
             .setStyle(ButtonStyle.Link)
-            .setURL('https://discord.com/users/1198136184526864475'); 
+            .setURL('https://discord.com/users/1198136184526864475');
 
         const bugRow = new ActionRowBuilder().addComponents(contactButton);
 
+        // 2. Tạo Embed thông báo
         const bugReportEmbed = createEmbed({
             title: '🐞 Report Bug / Contact',
             description: 'Found a bug or have a suggestion? Please contact the developer directly!\n\n' +
@@ -25,10 +27,24 @@ export const helpBugReportButton = {
         });
         bugReportEmbed.setTimestamp();
 
-        await interaction.reply({
-            embeds: [bugReportEmbed],
-            components: [bugRow],
-            flags: MessageFlags.Ephemeral
-        });
+        // 3. Phản hồi an toàn
+        // Sử dụng followUp nếu interaction đã được xử lý (acknowledged)
+        try {
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({
+                    embeds: [bugReportEmbed],
+                    components: [bugRow],
+                    flags: MessageFlags.Ephemeral
+                });
+            } else {
+                await interaction.reply({
+                    embeds: [bugReportEmbed],
+                    components: [bugRow],
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+        } catch (error) {
+            console.error('Interaction error:', error);
+        }
     },
 };
