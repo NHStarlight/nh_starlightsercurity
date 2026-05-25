@@ -43,28 +43,33 @@ export default {
             return;
         }
 
+        // Đưa targetUser ra ngoài phạm vi try-catch để khối catch bên dưới có thể đọc được dữ liệu nếu lỗi
+        let targetUser = null;
+        let filterType = 'all';
+
         try {
-            const filterType = interaction.options.getString('filter') || 'all';
-            // ĐÃ SỬA: Lấy đúng tên option là 'user' như định nghĩa ở trên data
-            const targetUser = interaction.options.getUser('user');
+            filterType = interaction.options.getString('filter') || 'all';
+            targetUser = interaction.options.getUser('user');
             const limit = interaction.options.getInteger('limit') || 10;
 
             const filters = {
                 limit,
                 action: filterType === 'all' ? undefined : filterType,
-                userId: targetUser?.id // Lấy ID dạng số truyền vào bộ lọc database
+                userId: targetUser?.id
             };
 
             const cases = await getModerationCases(interaction.guild.id, filters);
 
-            // ĐÃ SỬA: Sửa lại logic kiểm tra nếu không có case vi phạm nào
+            // Xử lý trực tiếp trường hợp mảng rỗng hoặc không tìm thấy dữ liệu vi phạm
             if (!cases || cases.length === 0) {
-                const noCaseMessage = targetUser 
-                    ? `Không tìm thấy case vi phạm nào của người dùng có ID: ${targetUser.id}`
-                    : `Không tìm thấy cases thuộc loại "${filterType === 'all' ? 'Tất cả' : filterType}" nào trong server này.`;
-                
-                // Ném lỗi ra log của Railway như bạn muốn để debug dễ dàng
-                throw new Error(noCaseMessage);
+                const noCaseDesc = targetUser 
+                    ? `Không tìm thấy case vi phạm nào của người dùng **${targetUser.tag}** (ID: ${targetUser.id}) trong hệ thống.`
+                    : `Không tìm thấy bất kỳ dữ liệu vi phạm nào thuộc loại danh mục "${filterType === 'all' ? 'Tất cả' : filterType}" trong server này.`;
+
+                return InteractionHelper.safeEditReply(interaction, {
+                    embeds: [errorEmbed('📋 Kết quả tra cứu', noCaseDesc)],
+                    flags: MessageFlags.Ephemeral
+                });
             }
 
             const CASES_PER_PAGE = 5;
@@ -168,18 +173,21 @@ export default {
                         components: [disabledRow]
                     });
                 } catch (error) {
-                    // Bỏ qua lỗi nếu tin nhắn đã bị xóa trước đó
+                    // Tránh lỗi sập bot khi tin nhắn đã bị xóa trước khi bộ đếm kết thúc
                 }
             });
 
         } catch (error) {
-            logger.error('Error in cases command:', error.message || error);
+            // Tối ưu khối catch: Log chi tiết lỗi ra console của Railway để tiện theo dõi
+            logger.error('Error in cases command:', error);
+
+            const errDesc = targetUser 
+                ? `Không tìm thấy dữ liệu vi phạm của **${targetUser.tag}** (ID: ${targetUser.id}). Hệ thống phản hồi: ${error.message || error}`
+                : `Không tìm thấy lịch sử vi phạm nào trong máy chủ hoặc hệ thống đang gặp sự cố kết nối Database.`;
+
             return InteractionHelper.safeEditReply(interaction, {
                 embeds: [
-                    errorEmbed(
-                        'System Error',
-                        error.message || 'An error occurred while retrieving moderation cases. Please try again later.'
-                    )
+                    errorEmbed('📋 Thông tin tra cứu', errDesc)
                 ],
                 flags: MessageFlags.Ephemeral
             });
