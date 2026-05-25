@@ -14,14 +14,14 @@ export default {
         const guild = interaction.guild;
 
         try {
-            // 1. Tạo mảng quyền mới dựa trên các quyền hiện tại
+            // Lấy danh sách quyền hiện tại và tạo danh sách mới đã chặn SendMessages
             const newOverwrites = channel.permissionOverwrites.cache.map(o => ({
                 id: o.id,
                 allow: o.allow.remove(PermissionFlagsBits.SendMessages),
                 deny: o.deny.add(PermissionFlagsBits.SendMessages)
             }));
 
-            // 2. Đảm bảo @everyone luôn có trong danh sách chặn
+            // Đảm bảo @everyone luôn nằm trong danh sách chặn
             if (!newOverwrites.find(o => o.id === guild.roles.everyone.id)) {
                 newOverwrites.push({
                     id: guild.roles.everyone.id,
@@ -29,11 +29,10 @@ export default {
                 });
             }
 
-            // 3. Cập nhật toàn bộ trong 1 lần gọi duy nhất (Cực nhanh)
+            // Áp dụng tất cả thay đổi trong 1 lần gọi (Cực nhanh)
             await channel.permissionOverwrites.set(newOverwrites);
 
-            // Gửi thông báo
-            await channel.send({ embeds: [successEmbed("🔒 Channel locked instantly.")] });
+            // Chỉ gửi 1 thông báo duy nhất (Ephemeral)
             await InteractionHelper.safeEditReply(interaction, {
                 embeds: [successEmbed("🔒 Channel locked successfully.")],
                 flags: MessageFlags.Ephemeral,
