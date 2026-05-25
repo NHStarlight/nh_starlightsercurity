@@ -20,31 +20,28 @@ export default {
         const channel = interaction.channel;
 
         try {
-            // 1. Fetch thêm 1 tin nhắn (là chính lệnh /purge)
-            // Chúng ta lấy nhiều hơn 1 để trừ hao tin nhắn lệnh
+            // 1. Fetch nhiều hơn 1 tin so với yêu cầu (cộng thêm 1 cho chính tin nhắn lệnh của bạn)
             const fetched = await channel.messages.fetch({ limit: amount + 1 });
 
-            // 2. Lọc bỏ tin nhắn chính là lệnh /purge mà người dùng vừa gõ
-            // interaction.id là ID của câu lệnh
-            const messagesToDelete = fetched.filter(msg => msg.id !== interaction.id);
+            // 2. Chuyển thành mảng và cắt bỏ tin nhắn đầu tiên (chính là tin nhắn lệnh của bạn)
+            const messagesToDelete = Array.from(fetched.values()).slice(1);
 
-            // 3. Cắt lấy đúng số lượng cần xóa (phòng trường hợp dư)
-            const finalMessages = Array.from(messagesToDelete.values()).slice(0, amount);
-
-            let deletedCount = 0;
-
-            if (finalMessages.length === 0) {
+            if (messagesToDelete.length === 0) {
                 return await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [errorEmbed("Không tìm thấy", "Không có tin nhắn nào để xóa ngoài lệnh này.")],
+                    embeds: [errorEmbed("Không tìm thấy", "Không có tin nhắn nào để xóa.")],
                 });
             }
 
-            // 4. Thực hiện xóa
-            if (finalMessages.length === 1) {
-                await finalMessages[0].delete();
+            let deletedCount = 0;
+
+            // 3. Xử lý xóa
+            if (messagesToDelete.length === 1) {
+                // Xóa 1 tin đơn lẻ
+                await messagesToDelete[0].delete();
                 deletedCount = 1;
             } else {
-                const deleted = await channel.bulkDelete(finalMessages, true);
+                // Xóa nhiều tin
+                const deleted = await channel.bulkDelete(messagesToDelete, true);
                 deletedCount = deleted.size;
             }
 
@@ -53,13 +50,12 @@ export default {
                 flags: MessageFlags.Ephemeral,
             });
 
-            // Tự xóa thông báo sau 3s
             setTimeout(() => { interaction.deleteReply().catch(() => {}); }, 3000);
 
         } catch (error) {
             console.error(error);
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [errorEmbed("Lỗi", "Không thể xóa tin nhắn. Chúng có thể quá cũ hoặc là tin nhắn hệ thống.")],
+                embeds: [errorEmbed("Lỗi", "Không thể xóa tin nhắn. (Có thể do tin quá cũ hoặc lỗi hệ thống).")],
             });
         }
     }
