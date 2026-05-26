@@ -1,17 +1,27 @@
-import { SlashCommandBuilder } from "discord.js";
-import { createInitialHelpMenu } from "../../utils/helpMenuHelper.js";
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { createInitialHelpMenu } from '../../utils/helpMenuHelper.js';
+import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 export default {
     data: new SlashCommandBuilder()
-        .setName("help")
-        .setDescription("Displays the help menu"),
-    
+        .setName('help')
+        .setDescription('Show the nh_starlightsercurity command list and categories'),
+
     async execute(interaction, guildConfig, client) {
-        // Lấy client an toàn
         const activeClient = client || interaction.client;
-        
-        await interaction.deferReply({ ephemeral: true });
+        const isPrefix = interaction._isPrefix === true;
+
+        if (!isPrefix) {
+            await InteractionHelper.safeDefer(interaction, {
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+
         const { embeds, components } = await createInitialHelpMenu(activeClient);
-        await interaction.editReply({ embeds, components });
+        await InteractionHelper.safeEditReply(interaction, {
+            embeds,
+            components,
+            flags: isPrefix ? undefined : MessageFlags.Ephemeral,
+        });
     },
 };

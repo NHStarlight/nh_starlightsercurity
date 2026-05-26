@@ -64,7 +64,7 @@ export default {
                     ? `No cases found for user ${targetUser.tag} (ID: ${targetUser.id}).`
                     : `No cases found for filter "${filterType === 'all' ? 'All' : filterType}" in this server.`;
                 
-                // Dùng createEmbed thường để hiện màu xanh, không bị dính chữ ❌ Error ép buộc
+                // Plain embed for empty state (avoid error-styled template)
                 const infoEmbed = createEmbed({
                     title: '📋 No cases found',
                     description: noCaseMessage,
@@ -185,7 +185,7 @@ export default {
         } catch (error) {
             logger.error('Error in cases command:', error);
             
-            // ĐÃ SỬA: In thẳng chi tiết lỗi cụ thể ra Discord để bạn biết chính xác lý do gãy lệnh
+            // Surface error details in the reply for easier debugging
             return InteractionHelper.safeEditReply(interaction, {
                 embeds: [
                     errorEmbed(

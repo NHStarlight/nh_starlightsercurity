@@ -1,239 +1,266 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import { createEmbed } from "./embeds.js";
-import { createSelectMenu } from "./components.js";
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { createEmbed } from './embeds.js';
+import { createSelectMenu } from './components.js';
+import { BotConfig } from '../config/bot.js';
+import { COMMAND_ALIASES_BY_COMMAND } from './commandAliases.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CATEGORY_SELECT_ID = "help-category-select";
-const ALL_COMMANDS_ID = "help-all-commands";
+export const CATEGORY_SELECT_ID = 'help-category-select';
+export const ALL_COMMANDS_ID = 'help-all-commands';
+
+const BRAND_NAME = BotConfig.brand?.name || 'nh_starlightsercurity';
+const DEFAULT_PREFIX = BotConfig.prefix || 'nh!';
 
 const CATEGORY_ICONS = {
-    Core: "ℹ️", Moderation: "🛡️", Fun: "🎮", Leveling: "📊", Utility: "🔧",
-    Ticket: "🎫", Welcome: "👋", Giveaway: "🎉", Counter: "🔢", Tools: "🛠️",
-    Search: "🔍", Reaction_Roles: "🎭", Community: "👥", Birthday: "🎂", Config: "⚙️",
+    Core: 'ℹ️',
+    Moderation: '🛡️',
+    Fun: '🎮',
+    Leveling: '📊',
+    Utility: '🔧',
+    Ticket: '🎫',
+    Welcome: '👋',
+    Giveaway: '🎉',
+    ServerStats: '🔢',
+    Tools: '🛠️',
+    Search: '🔍',
+    Reaction_roles: '🎭',
+    Community: '👥',
+    Birthday: '🎂',
+    Verification: '✅',
+    Voice: '🔊',
+    Logging: '📝',
+    JoinToCreate: '🎤',
 };
 
+const ALIASES_BY_COMMAND = Object.entries(COMMAND_ALIASES_BY_COMMAND).reduce((acc, [cmd, aliases]) => {
+    acc[cmd] = aliases;
+    return acc;
+}, {});
+
+function brandFooter(suffix = '') {
+    const base = BRAND_NAME;
+    return suffix ? `${base} | ${suffix}` : base;
+}
+
+function formatCategoryLabel(folderName) {
+    if (!folderName) return 'Other';
+    return folderName
+        .split(/[_-]/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(' ');
+}
+
+function formatCommandUsage(name) {
+    const aliases = ALIASES_BY_COMMAND[name];
+    const prefixParts = aliases?.length
+        ? aliases.slice(0, 3).map((a) => `\`${DEFAULT_PREFIX}${a}\``)
+        : [`\`${DEFAULT_PREFIX}${name}\``];
+    return `/${name} · ${prefixParts.join(' · ')}`;
+}
+
 /**
- * Tạo menu help ban đầu
- * @param {Client} client - Discord bot client
- * @returns {Promise<{embeds: Array, components: Array}>}
+ * Primary commands only (no duplicate alias keys).
+ * @param {import('discord.js').Client} client
  */
-export async function createInitialHelpMenu(client) {
-    const commandsPath = path.join(__dirname, "../commands");
-    const categoryDirs = (await fs.readdir(commandsPath, { withFileTypes: true }))
-        .filter((dirent) => dirent.isDirectory())
+export function collectPrimaryCommands(client) {
+    if (!client?.commands?.size) {
+        return [];
+    }
+
+    const seen = new Set();
+    const list = [];
+
+    for (const command of client.commands.values()) {
+        const name = command?.data?.name;
+        if (!name || seen.has(name)) {
+            continue;
+        }
+        seen.add(name);
+
+        list.push({
+            name,
+            description: command.data.description || 'No description available',
+            category: command.category || 'Other',
+            categoryLabel: formatCategoryLabel(command.category),
+            icon: CATEGORY_ICONS[command.category] || '🔹',
+        });
+    }
+
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * @param {import('discord.js').Client} client
+ */
+export async function getCategoryFolders() {
+    const commandsPath = path.join(__dirname, '../commands');
+    return (await fs.readdir(commandsPath, { withFileTypes: true }))
+        .filter((dirent) => dirent.isDirectory() && dirent.name !== 'modules')
         .map((dirent) => dirent.name)
         .sort();
+}
+
+/**
+ * Category select menu row (kept visible while paging).
+ * @param {import('discord.js').Client} client
+ */
+export async function createHelpSelectRow(client) {
+    const categoryDirs = await getCategoryFolders();
+    const commandCount = collectPrimaryCommands(client).length;
 
     const options = [
-        { label: "📋 All Commands", description: "View all available commands", value: ALL_COMMANDS_ID },
+        {
+            label: '📋 All Commands',
+            description: `View all ${commandCount} commands`,
+            value: ALL_COMMANDS_ID,
+        },
         ...categoryDirs.map((category) => {
-            const categoryName = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
-            const icon = CATEGORY_ICONS[categoryName] || "🔍";
-            return { label: `${icon} ${categoryName}`, description: `View commands in ${categoryName}`, value: category };
+            const label = formatCategoryLabel(category);
+            const icon = CATEGORY_ICONS[category] || '🔹';
+            return {
+                label: `${icon} ${label}`,
+                description: `Commands in ${label}`,
+                value: category,
+            };
         }),
     ];
 
-    const botName = client?.user?.username || "Starlight Security";
+    return createSelectMenu(CATEGORY_SELECT_ID, 'Select a category', options);
+}
+
+/**
+ * @param {import('discord.js').Client} client
+ * @param {number} currentPage
+ * @param {number} totalPages
+ * @param {string} category
+ */
+export async function buildHelpViewComponents(client, currentPage, totalPages, category = '') {
+    const selectRow = await createHelpSelectRow(client);
+    const pageRow = createHelpPaginationButtons(currentPage, totalPages, category);
+    return [selectRow, pageRow];
+}
+
+/**
+ * @param {import('discord.js').Client} client
+ */
+export async function createInitialHelpMenu(client) {
+    const commandCount = collectPrimaryCommands(client).length;
+
     const embed = createEmbed({
-        title: `🤖 ${botName} Help Center`,
-        description: "Welcome! Here is the list of available modules.",
-        color: 'primary'
+        title: `🤖 ${BRAND_NAME}`,
+        description:
+            `Welcome to **${BRAND_NAME}** — ${BotConfig.brand?.tagline || 'your server security bot'}.\n\n` +
+            `**Prefix:** \`${DEFAULT_PREFIX}\` · **Slash:** \`/\`\n` +
+            `Use the menu below to browse every command.\n\n` +
+            `**Moderation tip:** \`ban\` / \`${DEFAULT_PREFIX}b\` = **1 user** per use · ` +
+            `\`massban\` / \`${DEFAULT_PREFIX}mban\` = **many users** in one command.`,
+        color: 'primary',
     });
 
     embed.addFields(
-        { name: "🛡️ Moderation", value: "Tools for server protection", inline: true },
-        { name: "🎮 Fun", value: "Entertainment commands", inline: true },
-        { name: "📊 Leveling", value: "XP and progression", inline: true },
-        { name: "🎫 Tickets", value: "Support ticket system", inline: true },
-        { name: "🎉 Giveaways", value: "Automated giveaways", inline: true },
-        { name: "✅ Verification", value: "Access gating", inline: true }
+        { name: '🛡️ Moderation', value: 'ban, kick, timeout, purge, lock…', inline: true },
+        { name: '🎮 Fun', value: 'roll, flip, ship, fight…', inline: true },
+        { name: '📊 Leveling', value: 'rank, leaderboard, XP setup', inline: true },
+        { name: '🎫 Tickets', value: 'Support ticket system', inline: true },
+        { name: '🎉 Giveaways', value: 'gcreate, gend, greroll', inline: true },
+        { name: '✅ Verification', value: 'verify, autoverify, roles', inline: true },
     );
-    embed.setFooter({ text: "Starlight Security | Secured by Dev" });
+    embed.setFooter({ text: brandFooter(`${commandCount} commands`) });
     embed.setTimestamp();
 
     const bugReportButton = new ButtonBuilder()
-        .setLabel("Contact Developer")
+        .setLabel('Contact Developer')
         .setStyle(ButtonStyle.Link)
-        .setURL("https://discord.com/users/1198136184526864475");
+        .setURL('https://discord.com/users/1198136184526864475');
 
-    const selectRow = createSelectMenu(CATEGORY_SELECT_ID, "Select a category", options);
-    const buttonRow = new ActionRowBuilder().addComponents([bugReportButton]);
+    const selectRow = await createHelpSelectRow(client);
+    const buttonRow = new ActionRowBuilder().addComponents(bugReportButton);
 
     return { embeds: [embed], components: [buttonRow, selectRow] };
 }
 
-/**
- * Lấy danh sách tất cả categories
- * @returns {Promise<Array>}
- */
 export async function getAllCategories() {
-    const commandsPath = path.join(__dirname, "../commands");
-    const categoryDirs = (await fs.readdir(commandsPath, { withFileTypes: true }))
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => dirent.name)
-        .sort();
-    return categoryDirs;
+    return getCategoryFolders();
 }
 
 /**
- * Lấy description của command từ file
- * @param {string} filePath - Path đến file command
- * @returns {Promise<string>}
+ * @param {string} categoryFolder
+ * @param {number} page
+ * @param {import('discord.js').Client} client
  */
-async function getCommandDescription(filePath) {
-    try {
-        const commandModule = await import(`file://${filePath}`);
-        const command = commandModule.default;
-        
-        if (command?.data?.description) {
-            return command.data.description;
-        }
-    } catch (error) {
-        // Silently skip — command file may not export a description
-    }
-    return "No description available";
-}
+export async function getCategoryEmbedAndPageCount(categoryFolder, page = 1, client) {
+    const allCommands = collectPrimaryCommands(client).filter(
+        (cmd) => cmd.category === categoryFolder,
+    );
 
-/**
- * Tạo embed cho một category cụ thể với pagination
- * @param {string} category - Category name
- * @param {number} page - Page number
- * @param {Client} client - Discord bot client
- * @returns {Promise<{embed: EmbedBuilder, totalPages: number, currentPage: number}>}
- */
-export async function getCategoryEmbedAndPageCount(category, page = 1, client) {
-    const commandsPath = path.join(__dirname, "../commands");
-    const categoryPath = path.join(commandsPath, category);
-    
-    try {
-        const files = (await fs.readdir(categoryPath))
-            .filter(file => file.endsWith('.js'))
-            .sort();
+    const categoryLabel = formatCategoryLabel(categoryFolder);
+    const icon = CATEGORY_ICONS[categoryFolder] || '🔹';
+    const pageSize = 5;
+    const totalPages = Math.ceil(allCommands.length / pageSize) || 1;
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    const startIndex = (validPage - 1) * pageSize;
+    const pageCommands = allCommands.slice(startIndex, startIndex + pageSize);
 
-        const categoryName = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
-        const icon = CATEGORY_ICONS[categoryName] || "🔍";
-        const pageSize = 5;
-        const totalPages = Math.ceil(files.length / pageSize) || 1;
-        
-        // Validate page number - FIX: ensure page is within valid range
-        const validPage = Math.max(1, Math.min(page, totalPages));
-        
-        const startIndex = (validPage - 1) * pageSize;
-        const paginatedFiles = files.slice(startIndex, startIndex + pageSize);
+    const embed = createEmbed({
+        title: `${icon} ${categoryLabel} Commands`,
+        description:
+            allCommands.length === 0
+                ? 'No commands in this category.'
+                : `Page ${validPage} of ${totalPages} · **${allCommands.length}** command(s)`,
+        color: 'primary',
+    });
 
-        const embed = createEmbed({
-            title: `${icon} ${categoryName} Commands`,
-            description: `Page ${validPage} of ${totalPages}`,
-            color: 'primary'
+    for (const cmd of pageCommands) {
+        embed.addFields({
+            name: `• ${cmd.name}`,
+            value: `${cmd.description}\n${formatCommandUsage(cmd.name)}`,
+            inline: false,
         });
-
-        // Load descriptions for each command
-        for (const file of paginatedFiles) {
-            const commandName = file.replace('.js', '');
-            const filePath = path.join(categoryPath, file);
-            const description = await getCommandDescription(filePath);
-            
-            embed.addFields({
-                name: `• ${commandName}`,
-                value: description,
-                inline: false
-            });
-        }
-
-        embed.setFooter({ text: `Starlight Security | Page ${validPage}/${totalPages}` });
-        embed.setTimestamp();
-
-        return { embed, totalPages, currentPage: validPage };
-    } catch (error) {
-        throw error;
     }
+
+    embed.setFooter({ text: brandFooter(`Page ${validPage}/${totalPages}`) });
+    embed.setTimestamp();
+
+    return { embed, totalPages, currentPage: validPage };
 }
 
 /**
- * Tạo embed cho "All Commands" view
- * @param {number} page - Page number
- * @param {Client} client - Discord bot client
- * @returns {Promise<{embed: EmbedBuilder, totalPages: number, currentPage: number}>}
+ * @param {number} page
+ * @param {import('discord.js').Client} client
  */
 export async function getAllCommandsEmbedAndPageCount(page = 1, client) {
-    const commandsPath = path.join(__dirname, "../commands");
-    const categoryDirs = (await fs.readdir(commandsPath, { withFileTypes: true }))
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => dirent.name)
-        .sort();
+    const allCommands = collectPrimaryCommands(client);
+    const pageSize = 8;
+    const totalPages = Math.ceil(allCommands.length / pageSize) || 1;
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    const startIndex = (validPage - 1) * pageSize;
+    const pageCommands = allCommands.slice(startIndex, startIndex + pageSize);
 
-    try {
-        const allCommands = [];
+    const embed = createEmbed({
+        title: `📋 All Commands — ${BRAND_NAME}`,
+        description: `Page ${validPage} of ${totalPages} · **${allCommands.length}** commands · Prefix \`${DEFAULT_PREFIX}\``,
+        color: 'primary',
+    });
 
-        // Collect all commands from all categories
-        for (const category of categoryDirs) {
-            const categoryPath = path.join(commandsPath, category);
-            const files = (await fs.readdir(categoryPath))
-                .filter(file => file.endsWith('.js'))
-                .sort();
-
-            for (const file of files) {
-                const commandName = file.replace('.js', '');
-                const filePath = path.join(categoryPath, file);
-                const description = await getCommandDescription(filePath);
-                const categoryName = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
-
-                allCommands.push({
-                    name: commandName,
-                    description,
-                    category: categoryName,
-                    icon: CATEGORY_ICONS[categoryName] || "🔍"
-                });
-            }
-        }
-
-        allCommands.sort((a, b) => a.name.localeCompare(b.name));
-
-        const pageSize = 10;
-        const totalPages = Math.ceil(allCommands.length / pageSize) || 1;
-        
-        // Validate page number - FIX: ensure page is within valid range
-        const validPage = Math.max(1, Math.min(page, totalPages));
-        
-        const startIndex = (validPage - 1) * pageSize;
-        const paginatedCommands = allCommands.slice(startIndex, startIndex + pageSize);
-
-        const embed = createEmbed({
-            title: `📋 All Commands`,
-            description: `Page ${validPage} of ${totalPages} (Total: ${allCommands.length} commands)`,
-            color: 'primary'
+    for (const cmd of pageCommands) {
+        embed.addFields({
+            name: `${cmd.icon} /${cmd.name}`,
+            value: `${cmd.description}\n${formatCommandUsage(cmd.name)}\n*${cmd.categoryLabel}*`,
+            inline: false,
         });
-
-        for (const cmd of paginatedCommands) {
-            embed.addFields({
-                name: `${cmd.icon} ${cmd.name}`,
-                value: `${cmd.description}\n*Category: ${cmd.category}*`,
-                inline: false
-            });
-        }
-
-        embed.setFooter({ text: `Starlight Security | Page ${validPage}/${totalPages}` });
-        embed.setTimestamp();
-
-        return { embed, totalPages, currentPage: validPage };
-    } catch (error) {
-        throw error;
     }
+
+    embed.setFooter({ text: brandFooter(`Page ${validPage}/${totalPages}`) });
+    embed.setTimestamp();
+
+    return { embed, totalPages, currentPage: validPage };
 }
 
-/**
- * Tạo pagination buttons cho help menu
- * Format customId: help:action:page:category
- * @param {number} currentPage - Current page number
- * @param {number} totalPages - Total number of pages
- * @param {string} category - Category name (or 'all' for all commands)
- * @returns {ActionRowBuilder}
- */
 export function createHelpPaginationButtons(currentPage, totalPages, category = '') {
     const canGoBack = currentPage > 1;
     const canGoNext = currentPage < totalPages;

@@ -37,13 +37,13 @@ export const COMMAND_ALIASES_BY_COMMAND = {
     // Welcome
     welcome: ['wel', 'wlc'],
     goodbye: ['bye', 'gbye'],
-    greet: ['gr'],
+    greet: ['grt'],
     autorole: ['ar', 'auto'],
 
     // Verification
     verify: ['v', 'ver'],
     verification: ['vrf', 'verif'],
-    autoverify: ['av', 'aver'],
+    autoverify: ['aver', 'averify'],
 
     // Voice
     activity: ['act', 'vc'],
@@ -108,7 +108,7 @@ export const COMMAND_ALIASES_BY_COMMAND = {
     fight: ['ft'],
     ship: ['shp'],
     fact: ['fc', 'facts'],
-    mock: ['mk', 'spongebob'],
+    mock: ['mck', 'spongebob'],
     reverse: ['rev'],
     wanted: ['want', 'poster'],
 

@@ -35,6 +35,12 @@ export const botConfig = {
   // Default prefix for nh!ban-style commands (per-guild override in guild config).
   prefix: process.env.BOT_PREFIX || 'nh!',
 
+  // Public brand name (help menu, footers, presence text).
+  brand: {
+    name: 'nh_starlightsercurity',
+    tagline: 'Security & moderation bot',
+  },
+
   // =========================
   // COMMAND BEHAVIOR
   // =========================
@@ -139,7 +145,7 @@ export const botConfig = {
     },
     footer: {
       // Default footer text used in bot embeds.
-      text: "Nh_starlight bot",
+      text: "nh_starlightsercurity",
       // Footer icon URL (null = no icon).
       icon: null,
     },

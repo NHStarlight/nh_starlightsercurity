@@ -20,7 +20,7 @@ function withTraceContext(context = {}, traceContext = {}) {
   };
 }
 
-// HÀM TỰ ĐỘNG XÁC NHẬN TƯƠNG TÁC
+// Auto-acknowledge button/select interactions to avoid "interaction failed"
 async function autoAcknowledge(interaction) {
   if (!interaction.deferred && !interaction.replied) {
     if (interaction.isButton() || interaction.isStringSelectMenu()) {
@@ -40,7 +40,6 @@ export default {
       try {
         InteractionHelper.patchInteractionResponses(interaction);
 
-        // TỰ ĐỘNG XÁC NHẬN NÚT BẤM / MENU NGAY TẠI ĐÂY
         if (interaction.isButton() || interaction.isStringSelectMenu()) {
             await autoAcknowledge(interaction);
         }
@@ -51,6 +50,16 @@ export default {
             logger.warn(`Unknown command: ${interaction.commandName}`);
             return;
           }
+
+          const abuse = await enforceAbuseProtection(interaction, command, interaction.commandName);
+          if (!abuse.allowed) {
+            await InteractionHelper.safeReply(interaction, {
+              content: `⏱️ Slow down! Try again in ${formatCooldownDuration(abuse.remainingMs)}.`,
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
           await command.execute(interaction, await getGuildConfig(client, interaction.guildId), client);
         } 
         else if (interaction.isButton()) {
@@ -71,7 +80,6 @@ export default {
           else logger.warn(`No select menu handler found for: ${customId}`);
         }
         else if (interaction.isModalSubmit()) {
-           // ... (giữ nguyên logic modal cũ) ...
            const [customId, ...args] = interaction.customId.split(':');
            const modal = client.modals.get(customId);
            if (modal) await modal.execute(interaction, client, args);

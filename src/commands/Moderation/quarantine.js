@@ -21,7 +21,7 @@ export default {
         // Đảm bảo bảng tồn tại
         try {
             await pgDb.pool.query(`CREATE TABLE IF NOT EXISTS quarantine_data (user_id VARCHAR(20) PRIMARY KEY, roles TEXT NOT NULL)`);
-        } catch (e) { /* Bỏ qua nếu bảng đã tồn tại */ }
+        } catch (e) { /* Table may already exist */ }
 
         let role = interaction.guild.roles.cache.find(r => r.name === 'Quarantine');
         if (!role) {

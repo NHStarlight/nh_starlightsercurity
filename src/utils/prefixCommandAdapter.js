@@ -131,28 +131,42 @@ export function createPrefixInteraction(message, client, command, commandName, a
                 return found !== undefined ? parseFloat(found) : null;
             },
 
-            getString: () => stringArgs.join(' ') || null,
+            getString: (name) => {
+                const mentionUsers = [...message.mentions.users.values()].map((u) => `<@${u.id}>`);
+                const snowflakeUsers = parsedArgs.filter(
+                    (a) => SNOWFLAKE_REGEX.test(a) && !message.mentions.users.has(a),
+                );
+
+                // massban / masskick: users = all @mentions (or IDs), reason = remaining text
+                if (name === 'users') {
+                    const combined = [...mentionUsers, ...snowflakeUsers];
+                    if (combined.length > 0) {
+                        return combined.join(' ');
+                    }
+                    return stringArgs.join(' ') || null;
+                }
+
+                if (name === 'reason') {
+                    return stringArgs.join(' ') || null;
+                }
+
+                return stringArgs.join(' ') || null;
+            },
 
             getUser: () => message.mentions.users.first() ?? null,
 
-            getMember: async () => {
+            // Sync only — moderation commands use getMember() without await
+            getMember: (_name) => {
                 const mentioned = message.mentions.members.first();
                 if (mentioned) return mentioned;
 
                 const mentionedUser = message.mentions.users.first();
                 if (mentionedUser) {
-                    return (
-                        message.guild.members.cache.get(mentionedUser.id) ??
-                        (await message.guild.members.fetch(mentionedUser.id).catch(() => null))
-                    );
+                    return message.guild.members.cache.get(mentionedUser.id) ?? null;
                 }
 
                 const id = findSnowflake(parsedArgs);
-                if (!id) return null;
-                return (
-                    message.guild.members.cache.get(id) ??
-                    (await message.guild.members.fetch(id).catch(() => null))
-                );
+                return id ? message.guild.members.cache.get(id) ?? null : null;
             },
 
             getChannel: () =>
@@ -178,7 +192,7 @@ export function createPrefixInteraction(message, client, command, commandName, a
 }
 
 export function parsePrefixContent(content, prefix) {
-    if (!content.startsWith(prefix)) return null;
+    if (!content.toLowerCase().startsWith(prefix.toLowerCase())) return null;
 
     const trimmed = content.slice(prefix.length).trim();
     if (!trimmed) return null;
