@@ -23,9 +23,7 @@ export default {
         }
 
         // 2. Xử lý logic lấy amount (Prefix lấy từ args, Slash lấy từ options)
-        let amount = isPrefix 
-            ? parseInt(interaction.options.getInteger()) // Lấy từ context của prefixHandler
-            : interaction.options.getInteger("amount");
+        let amount = interaction.options.getInteger("amount") ?? 10;
 
         // 3. CHẶN LỖI 100 TIN NHẮN (Discord API limit)
         if (amount > 100) amount = 100;
