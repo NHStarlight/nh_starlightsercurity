@@ -1,5 +1,4 @@
-// src/commands/Moderation/setup-quarantine.js
-import { SlashCommandBuilder, PermissionsBitField } from 'discord.js';
+import { SlashCommandBuilder, PermissionsBitField, Colors } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -7,20 +6,41 @@ export default {
         .setDescription('Create and setup the Quarantine role'),
     
     async execute(interaction) {
+        // Only allow administrators to run this
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             return interaction.reply({ content: 'You need Administrator permissions!', ephemeral: true });
         }
 
-        const role = await interaction.guild.roles.create({
-            name: 'Quarantine',
-            color: '#000000',
-            reason: 'Automated setup for Quarantine system'
-        });
+        await interaction.deferReply({ ephemeral: true });
 
-        interaction.guild.channels.cache.forEach(channel => {
-            channel.permissionOverwrites.create(role, { ViewChannel: false }).catch(console.error);
-        });
+        try {
+            // Get bot's highest role position
+            const botMember = await interaction.guild.members.fetch(interaction.client.user.id);
+            const botTopRolePosition = botMember.roles.highest.position;
 
-        await interaction.reply(`Quarantine role created and channels secured. Role ID: ${role.id}`);
+            // Create the role
+            const role = await interaction.guild.roles.create({
+                name: 'Quarantine',
+                color: Colors.Red,
+                reason: 'Automated setup for Quarantine system',
+                position: botTopRolePosition - 1 // Place it below the bot's top role
+            });
+
+            // Iterate through channels and deny viewing permissions
+            const channels = interaction.guild.channels.cache;
+            for (const [channelId, channel] of channels) {
+                // Skip category channels if you want, or just apply to all
+                if (channel.permissionOverwrites) {
+                    await channel.permissionOverwrites.create(role, { 
+                        ViewChannel: false 
+                    }).catch(err => console.error(`Failed to update ${channel.name}:`, err));
+                }
+            }
+
+            await interaction.editReply(`Quarantine role created (Red) and channels secured. Role ID: ${role.id}`);
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('An error occurred while setting up the quarantine system.');
+        }
     }
 };
