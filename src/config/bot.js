@@ -32,6 +32,9 @@ export const botConfig = {
     ],
   },
 
+  // Default prefix for nh!ban-style commands (per-guild override in guild config).
+  prefix: process.env.BOT_PREFIX || 'nh!',
+
   // =========================
   // COMMAND BEHAVIOR
   // =========================

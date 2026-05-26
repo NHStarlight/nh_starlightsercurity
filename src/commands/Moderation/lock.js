@@ -22,7 +22,7 @@ export default {
         try {
             const overwrites = channel.permissionOverwrites.cache;
             const roleIds = [...overwrites.keys(), guild.roles.everyone.id];
-            
+
             for (const id of roleIds) {
                 try {
                     await channel.permissionOverwrites.edit(id, { SendMessages: false });
@@ -31,27 +31,15 @@ export default {
                 }
             }
 
-            // PHẢN HỒI DỰA VÀO LOẠI LỆNH
-            const embed = successEmbed("🔒 Channel locked successfully.");
-            
-            if (isPrefix) {
-                await channel.send({ embeds: [embed] });
-            } else {
-                await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [embed],
-                    flags: MessageFlags.Ephemeral,
-                });
-            }
-
+            await InteractionHelper.safeEditReply(interaction, {
+                embeds: [successEmbed("🔒 Channel locked successfully.")],
+                flags: isPrefix ? undefined : MessageFlags.Ephemeral,
+            });
         } catch (error) {
             logger.error("Critical lock error:", error);
-            const errEmbed = errorEmbed("Error", "Failed to process lock command.");
-            
-            if (isPrefix) {
-                await channel.send({ embeds: [errEmbed] });
-            } else {
-                await InteractionHelper.safeEditReply(interaction, { embeds: [errEmbed] });
-            }
+            await InteractionHelper.safeEditReply(interaction, {
+                embeds: [errorEmbed("Error", "Failed to process lock command.")],
+            });
         }
     }
 };
