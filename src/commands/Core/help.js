@@ -1,3 +1,11 @@
+export default {
+    data: new SlashCommandBuilder().setName("help")...,
+    async execute(interaction, guildConfig, client) {
+        console.log("Lệnh help đã được gọi!"); // Thêm dòng này
+        await interaction.deferReply({ ephemeral: true });
+        // ...
+    }
+};
 import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { createEmbed } from "../../utils/embeds.js";
 import { createSelectMenu } from "../../utils/components.js";
