@@ -94,7 +94,7 @@ async function getCommandDescription(filePath) {
             return command.data.description;
         }
     } catch (error) {
-        console.error(`Error loading command description from ${filePath}:`, error);
+        // Silently skip — command file may not export a description
     }
     return "No description available";
 }
@@ -150,7 +150,6 @@ export async function getCategoryEmbedAndPageCount(category, page = 1, client) {
 
         return { embed, totalPages, currentPage: validPage };
     } catch (error) {
-        console.error(`Error reading category ${category}:`, error);
         throw error;
     }
 }
@@ -223,7 +222,6 @@ export async function getAllCommandsEmbedAndPageCount(page = 1, client) {
 
         return { embed, totalPages, currentPage: validPage };
     } catch (error) {
-        console.error(`Error reading all commands:`, error);
         throw error;
     }
 }

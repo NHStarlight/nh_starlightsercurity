@@ -50,7 +50,7 @@ export function createEmbed({
         embed.setAuthor(author);
       }
     } catch (error) {
-      
+      // Invalid author URL or format — skip silently to avoid crashing the embed
     }
   }
 
@@ -63,7 +63,7 @@ export function createEmbed({
         embed.setFooter(footer);
       }
     } catch (error) {
-      
+      // Invalid footer iconURL or format — skip silently to avoid crashing the embed
     }
   }
 
@@ -76,7 +76,7 @@ export function createEmbed({
         embed.setThumbnail(thumbnail.url);
       }
     } catch (error) {
-      
+      // Invalid thumbnail URL — skip silently to avoid crashing the embed
     }
   }
 
@@ -89,7 +89,7 @@ export function createEmbed({
         embed.setImage(image.url);
       }
     } catch (error) {
-      
+      // Invalid image URL — skip silently to avoid crashing the embed
     }
   }
 
@@ -105,7 +105,7 @@ export function createEmbed({
     try {
       embed.setURL(url);
     } catch (error) {
-      
+      // Invalid URL format — skip silently to avoid crashing the embed
     }
   }
 

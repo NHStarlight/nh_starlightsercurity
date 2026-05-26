@@ -84,7 +84,7 @@ export function createButton(customId, label, style = 'primary', emoji = null, d
         try {
             button.setEmoji(emoji);
         } catch (error) {
-            
+            // Invalid emoji format — skip silently
         }
     }
     
@@ -111,7 +111,7 @@ export function createLinkButton(label, url, emoji = null) {
         try {
             button.setEmoji(emoji);
         } catch (error) {
-            
+            // Invalid emoji format — skip silently
         }
     }
     
@@ -142,7 +142,7 @@ export function createButtonRow(buttons) {
                 ));
             }
         } catch (error) {
-            
+            // Skip invalid button definition
             continue;
         }
     }

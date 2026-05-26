@@ -46,31 +46,29 @@ export default {
         }
 
         if (interaction.isChatInputCommand()) {
-          // ... (giữ nguyên logic cũ của bạn) ...
           const command = client.commands.get(interaction.commandName);
+          if (!command) {
+            logger.warn(`Unknown command: ${interaction.commandName}`);
+            return;
+          }
           await command.execute(interaction, await getGuildConfig(client, interaction.guildId), client);
         } 
         else if (interaction.isButton()) {
-          console.log(`🔴 Button pressed! customId: ${interaction.customId}`);
+          logger.debug(`Button pressed: ${interaction.customId}`);
           const [customId, ...args] = interaction.customId.split(':');
-          console.log(`Parsed customId: ${customId}, args: ${args.join(':')}`);
-          console.log(`Looking for button handler with name: "${customId}"`);
-          console.log(`Available buttons:`, Array.from(client.buttons.keys()));
           
           const button = client.buttons.get(customId);
-          console.log(`Button handler found:`, !!button);
           
           if (button) await button.execute(interaction, client, args);
-          else console.log(`❌ No button handler found for: ${customId}`);
+          else logger.warn(`No button handler found for: ${customId}`);
         } 
         else if (interaction.isStringSelectMenu()) {
-          console.log(`🟢 Select menu! customId: ${interaction.customId}`);
+          logger.debug(`Select menu: ${interaction.customId}`);
           const [customId, ...args] = interaction.customId.split(':');
-          console.log(`Parsed customId: ${customId}, args: ${args.join(':')}`);
           
           const selectMenu = client.selectMenus.get(customId);
           if (selectMenu) await selectMenu.execute(interaction, client, args);
-          else console.log(`❌ No select menu handler found for: ${customId}`);
+          else logger.warn(`No select menu handler found for: ${customId}`);
         }
         else if (interaction.isModalSubmit()) {
            // ... (giữ nguyên logic modal cũ) ...

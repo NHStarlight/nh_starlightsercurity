@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { errorEmbed, successEmbed } from '../../utils/embeds.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { logger } from '../../utils/logger.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -61,7 +62,7 @@ export default {
             }
 
         } catch (error) {
-            console.error("Purge error:", error);
+            logger.error("Purge error:", error);
             const err = errorEmbed("Error", "Failed to delete messages. (Older than 14 days or system messages.)");
             isPrefix ? await channel.send({ embeds: [err] }) : await InteractionHelper.safeEditReply(interaction, { embeds: [err] });
         }

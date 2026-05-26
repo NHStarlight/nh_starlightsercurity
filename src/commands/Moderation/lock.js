@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { errorEmbed, successEmbed } from '../../utils/embeds.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { logger } from '../../utils/logger.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -28,7 +29,7 @@ export default {
                 try {
                     await channel.permissionOverwrites.edit(id, { SendMessages: false });
                 } catch (e) {
-                    console.log(`Skipping role ${id}:`, e.message);
+                    logger.debug(`Skipping role ${id}: ${e.message}`);
                 }
             }
 
@@ -45,7 +46,7 @@ export default {
             }
 
         } catch (error) {
-            console.error("Critical lock error:", error);
+            logger.error("Critical lock error:", error);
             const errEmbed = errorEmbed("Error", "Failed to process lock command.");
             
             if (isPrefix) {

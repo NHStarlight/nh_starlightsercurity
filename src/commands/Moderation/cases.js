@@ -178,6 +178,7 @@ export default {
                         components: [disabledRow]
                     });
                 } catch (error) {
+                    logger.debug('Could not disable cases buttons (message may have been deleted):', error.message);
                 }
             });
 

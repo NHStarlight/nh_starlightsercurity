@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, PermissionsBitField, Colors } from 'discord.js';
+import { logger } from '../../utils/logger.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -33,13 +34,13 @@ export default {
                 if (channel.permissionOverwrites) {
                     await channel.permissionOverwrites.create(role, { 
                         ViewChannel: false 
-                    }).catch(err => console.error(`Failed to update ${channel.name}:`, err));
+                    }).catch(err => logger.warn(`Failed to update permissions for ${channel.name}: ${err.message}`));
                 }
             }
 
             await interaction.editReply(`Quarantine role created (Red) and channels secured. Role ID: ${role.id}`);
         } catch (error) {
-            console.error(error);
+            logger.error('Quarantine setup error:', error);
             await interaction.editReply('An error occurred while setting up the quarantine system.');
         }
     }

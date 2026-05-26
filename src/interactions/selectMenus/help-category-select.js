@@ -1,4 +1,5 @@
 import { getCategoryEmbedAndPageCount, getAllCommandsEmbedAndPageCount, createHelpPaginationButtons } from '../../utils/helpMenuHelper.js';
+import { logger } from '../../utils/logger.js';
 
 export default {
     name: 'help-category-select',
@@ -24,7 +25,7 @@ export default {
                 components: [row]
             });
         } catch (error) {
-            console.error('Error in select menu handler:', error);
+            logger.error('Error in select menu handler:', error);
             await interaction.editReply({ content: '❌ Failed to load category.' });
         }
     }

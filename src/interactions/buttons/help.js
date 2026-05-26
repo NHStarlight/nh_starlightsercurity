@@ -1,4 +1,5 @@
 import { getCategoryEmbedAndPageCount, getAllCommandsEmbedAndPageCount, createHelpPaginationButtons } from '../../utils/helpMenuHelper.js';
+import { logger } from '../../utils/logger.js';
 
 export default {
     name: 'help',
@@ -26,7 +27,7 @@ export default {
                 components: [row]
             });
         } catch (error) {
-            console.error('Error in help button handler:', error);
+            logger.error('Error in help button handler:', error);
             await interaction.editReply({ content: '❌ An error occurred while updating the help menu.' });
         }
     }

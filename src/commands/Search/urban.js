@@ -76,8 +76,8 @@ export default {
             }
             
             const definition = response.data.list[0];
-            const cleanDefinition = definition.definition.replace(/\[|\]/g, '');
-            const cleanExample = definition.example.replace(/\[|\]/g, '');
+            const cleanDefinition = (definition.definition || '').replace(/\[|\]/g, '');
+            const cleanExample = (definition.example || '').replace(/\[|\]/g, '');
             
             const formattedDefinition = cleanDefinition
 .replace(/\n\s*\n/g, '\n\n')
