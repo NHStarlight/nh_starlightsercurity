@@ -1,5 +1,15 @@
 import { SlashCommandBuilder, PermissionsBitField, Colors } from 'discord.js';
-import db from '../../Utility/src/config/db.js'; // Điều chỉnh đường dẫn này đến file db.js của bạn
+import db from '../../Utility/src/config/db.js'; // Adjust this path to your db.js
+
+// Function to ensure table exists
+async function ensureDatabase() {
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS quarantine_data (
+            user_id VARCHAR(20) PRIMARY KEY,
+            roles TEXT NOT NULL
+        )
+    `);
+}
 
 async function ensureQuarantineRole(guild, botMember) {
     let role = guild.roles.cache.find(r => r.name === 'Quarantine');
@@ -24,8 +34,14 @@ export default {
         .addUserOption(option => option.setName('user').setDescription('Member to quarantine').setRequired(true)),
     
     async execute(interaction) {
-        // Fix for Interaction expired
         await interaction.deferReply({ ephemeral: true });
+
+        // Ensure database table exists before proceeding
+        try {
+            await ensureDatabase();
+        } catch (err) {
+            console.error('Failed to init database table:', err);
+        }
 
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             return interaction.editReply({ content: 'You do not have permission.' });
@@ -37,11 +53,9 @@ export default {
         const botMember = await interaction.guild.members.fetch(interaction.client.user.id);
         const quarantineRole = await ensureQuarantineRole(interaction.guild, botMember);
         
-        // Save roles: Filter out @everyone and the quarantine role itself
         const rolesToSave = member.roles.cache.filter(r => r.id !== interaction.guild.id && r.id !== quarantineRole.id).map(r => r.id);
         
         try {
-            // Save to DB
             await db.query(
                 'INSERT INTO quarantine_data (user_id, roles) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET roles = $2',
                 [member.id, JSON.stringify(rolesToSave)]
