@@ -134,9 +134,10 @@ export async function getCategoryEmbedAndPageCount(category, page = 1, client) {
 
 /**
  * Tạo pagination buttons cho help menu
+ * Format customId: help:action:page:category
  * @param {number} currentPage - Current page number
  * @param {number} totalPages - Total number of pages
- * @param {string} action - 'category' để biết đang xem category nào (nếu cần)
+ * @param {string} category - Category name
  * @returns {ActionRowBuilder}
  */
 export function createHelpPaginationButtons(currentPage, totalPages, category = '') {
