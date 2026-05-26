@@ -9,17 +9,21 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
     async execute(interaction, config, client) {
-        await InteractionHelper.safeDefer(interaction);
+        // KIỂM TRA ĐÂY LÀ PREFIX HAY SLASH
+        // Nếu không có deferReply, nghĩa là đây là lệnh Prefix (nh!lock)
+        const isPrefix = !interaction.deferReply;
+
+        if (!isPrefix) {
+            await InteractionHelper.safeDefer(interaction);
+        }
+
         const channel = interaction.channel;
         const guild = interaction.guild;
 
         try {
             const overwrites = channel.permissionOverwrites.cache;
-            
-            // Tạo danh sách các ID cần xử lý
             const roleIds = [...overwrites.keys(), guild.roles.everyone.id];
             
-            // Xử lý từng role một, dùng try-catch bên trong để tránh làm chết cả lệnh
             for (const id of roleIds) {
                 try {
                     await channel.permissionOverwrites.edit(id, { SendMessages: false });
@@ -28,16 +32,27 @@ export default {
                 }
             }
 
-            await InteractionHelper.safeEditReply(interaction, {
-                embeds: [successEmbed("🔒 Channel locked successfully.")],
-                flags: MessageFlags.Ephemeral,
-            });
+            // PHẢN HỒI DỰA VÀO LOẠI LỆNH
+            const embed = successEmbed("🔒 Channel locked successfully.");
+            
+            if (isPrefix) {
+                await channel.send({ embeds: [embed] });
+            } else {
+                await InteractionHelper.safeEditReply(interaction, {
+                    embeds: [embed],
+                    flags: MessageFlags.Ephemeral,
+                });
+            }
 
         } catch (error) {
             console.error("Critical lock error:", error);
-            await InteractionHelper.safeEditReply(interaction, {
-                embeds: [errorEmbed("Error", "Failed to process lock command.")],
-            });
+            const errEmbed = errorEmbed("Error", "Failed to process lock command.");
+            
+            if (isPrefix) {
+                await channel.send({ embeds: [errEmbed] });
+            } else {
+                await InteractionHelper.safeEditReply(interaction, { embeds: [errEmbed] });
+            }
         }
     }
 };
