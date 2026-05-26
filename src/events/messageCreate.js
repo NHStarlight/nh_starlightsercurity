@@ -6,40 +6,46 @@ export default {
     async execute(message, client) {
         const PREFIX = "nh!";
 
-        // Ignore messages that don't start with prefix, are from bots, or are not in a guild
         if (!message.content.startsWith(PREFIX) || message.author.bot || !message.guild) return;
 
-        // Parse command name and arguments
         const args = message.content.slice(PREFIX.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
 
-        // Directly look up the command in the client.commands collection
-        // No aliases file needed; it matches the file name in your commands folder
         const command = client.commands.get(commandName);
 
         if (command) {
-            // Create a fake interaction object to bridge Prefix to Slash Command logic
+            // Enhanced fakeInteraction to prevent errors with missing methods
             const fakeInteraction = {
                 member: message.member,
                 guild: message.guild,
                 channel: message.channel,
                 user: message.author,
-                reply: (content) => message.reply(content),
-                // Bridging options to support command arguments
+                
+                // Essential Slash Command methods
+                reply: async (content) => message.reply(content),
+                deferReply: async () => {}, // Prevents "deferReply is not a function" error
+                editReply: async (content) => message.channel.send(content),
+                followUp: async (content) => message.channel.send(content),
+                
+                // Properties often checked by commands
+                deferred: false,
+                replied: false,
+                
                 options: {
                     getMember: (name) => message.mentions.members.first() || message.member,
                     getString: (name) => args.join(' '),
                     getUser: (name) => message.mentions.users.first(),
-                    getChannel: (name) => message.mentions.channels.first()
+                    getChannel: (name) => message.mentions.channels.first(),
+                    getInteger: (name) => parseInt(args[0]) || 0
                 }
             };
 
             try {
-                // Execute the command using the fake interaction
                 await command.execute(fakeInteraction);
             } catch (error) {
-                logger.error(`Error executing ${commandName} via prefix:`, error);
-                message.reply('An error occurred while executing this command.');
+                // Log the SPECIFIC error to your terminal
+                logger.error(`Error executing ${commandName}:`, error);
+                message.reply('An error occurred. Check terminal for details.');
             }
         }
     }
