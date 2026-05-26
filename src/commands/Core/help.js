@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const CATEGORY_SELECT_ID = "help-category-select";
 const ALL_COMMANDS_ID = "help-all-commands";
-const BUG_REPORT_BUTTON_ID = "help-bug-report";
+const BUG_REPORT_BUTTON_ID = "help-bug-report"; // ID này phải khớp với file button ở trên
 
 const CATEGORY_ICONS = {
     Core: "ℹ️", Moderation: "🛡️", Fun: "🎮", Leveling: "📊", Utility: "🔧",
@@ -26,21 +26,28 @@ export async function createInitialHelpMenu(client) {
         .sort();
 
     const options = [
-        { label: "📋 All Commands", description: "View all available commands with pagination", value: ALL_COMMANDS_ID },
+        { label: "📋 All Commands", description: "View all available commands", value: ALL_COMMANDS_ID },
         ...categoryDirs.map((category) => {
             const categoryName = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
             const icon = CATEGORY_ICONS[categoryName] || "🔍";
-            return { label: `${icon} ${categoryName}`, description: `View commands in the ${categoryName} category`, value: category };
+            return { label: `${icon} ${categoryName}`, description: `View commands in ${categoryName}`, value: category };
         }),
     ];
 
-    const botName = client?.user?.username || "Starlight Security";
     const embed = createEmbed({
-        title: `🤖 ${botName} Help Center`,
-        description: "Welcome to Starlight Security! Your all-in-one companion for server protection and management.",
+        title: `🤖 ${client.user.username} Help Center`,
+        description: "Welcome! Here is the list of available modules.",
         color: 'primary'
     });
 
+    embed.addFields(
+        { name: "🛡️ Moderation", value: "Tools for server protection", inline: true },
+        { name: "🎮 Fun", value: "Entertainment commands", inline: true },
+        { name: "📊 Leveling", value: "XP and progression", inline: true },
+        { name: "🎫 Tickets", value: "Support ticket system", inline: true },
+        { name: "🎉 Giveaways", value: "Automated giveaways", inline: true },
+        { name: "✅ Verification", value: "Access gating", inline: true }
+    );
     embed.setFooter({ text: "Starlight Security | Secured by Dev" });
     embed.setTimestamp();
 
@@ -49,7 +56,7 @@ export async function createInitialHelpMenu(client) {
         .setLabel("Contact Developer")
         .setStyle(ButtonStyle.Primary);
 
-    const selectRow = createSelectMenu(CATEGORY_SELECT_ID, "Select to view the commands", options);
+    const selectRow = createSelectMenu(CATEGORY_SELECT_ID, "Select a category", options);
     const buttonRow = new ActionRowBuilder().addComponents([bugReportButton]);
 
     return { embeds: [embed], components: [buttonRow, selectRow] };
@@ -58,11 +65,11 @@ export async function createInitialHelpMenu(client) {
 export default {
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("Displays the help menu with all available commands"),
+        .setDescription("Displays the help menu"),
     
     async execute(interaction, guildConfig, client) {
-        await interaction.deferReply({ ephemeral: true }).catch(console.error);
+        await interaction.deferReply({ ephemeral: true });
         const { embeds, components } = await createInitialHelpMenu(client);
-        await interaction.editReply({ embeds, components }).catch(console.error);
+        await interaction.editReply({ embeds, components });
     },
 };
