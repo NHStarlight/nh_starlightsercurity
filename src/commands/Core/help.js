@@ -1,11 +1,3 @@
-export default {
-    data: new SlashCommandBuilder().setName("help")...,
-    async execute(interaction, guildConfig, client) {
-        console.log("Lệnh help đã được gọi!"); // Thêm dòng này
-        await interaction.deferReply({ ephemeral: true });
-        // ...
-    }
-};
 import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { createEmbed } from "../../utils/embeds.js";
 import { createSelectMenu } from "../../utils/components.js";
@@ -49,22 +41,6 @@ export async function createInitialHelpMenu(client) {
         color: 'primary'
     });
 
-    embed.addFields(
-        { name: "🛡️ **Moderation**", value: "Server moderation, user management, and enforcement tools", inline: true },
-        { name: "🎮 **Fun**", value: "Games, entertainment, and interactive commands", inline: true },
-        { name: "📊 **Leveling**", value: "User levels, XP system, and progression tracking", inline: true },
-        { name: "🎫 **Tickets**", value: "Support ticket system for server management", inline: true },
-        { name: "🎉 **Giveaways**", value: "Automated giveaway management and distribution", inline: true },
-        { name: "👋 **Welcome**", value: "Member welcome messages and onboarding", inline: true },
-        { name: "🎂 **Birthdays**", value: "Birthday tracking and celebration features", inline: true },
-        { name: "👥 **Community**", value: "Community tools, applications, and member engagement", inline: true },
-        { name: "⚙️ **Config**", value: "Server and bot configuration management commands", inline: true },
-        { name: "🔢 **Counter**", value: "Live counter channel setup and counter controls", inline: true },
-        { name: "🎙️ **Join to Create**", value: "Dynamic voice channel creation and management", inline: true },
-        { name: "🎭 **Reaction Roles**", value: "Self-assignable roles using reaction-role systems", inline: true },
-        { name: "✅ **Verification**", value: "Member verification workflows and access gating", inline: true },
-        { name: "🔧 **Utilities**", value: "Useful tools and server utilities", inline: true }
-    );
     embed.setFooter({ text: "Starlight Security | Secured by Dev" });
     embed.setTimestamp();
 
@@ -85,11 +61,8 @@ export default {
         .setDescription("Displays the help menu with all available commands"),
     
     async execute(interaction, guildConfig, client) {
-        // Đã loại bỏ setTimeout gây lỗi "Interaction failed"
         await interaction.deferReply({ ephemeral: true }).catch(console.error);
-        
         const { embeds, components } = await createInitialHelpMenu(client);
-        
         await interaction.editReply({ embeds, components }).catch(console.error);
     },
 };
