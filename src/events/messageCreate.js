@@ -1,47 +1,33 @@
-import { Events } from 'discord.js';
-import { logger } from '../utils/logger.js';
+import { getCategoryEmbedAndPageCount, getAllCommandsEmbedAndPageCount, createHelpPaginationButtons } from '../../utils/helpMenuHelper.js';
 
 export default {
-    name: Events.MessageCreate,
-    async execute(message, client) {
-        const PREFIX = "nh!";
-
-        if (!message.content.startsWith(PREFIX) || message.author.bot || !message.guild) return;
-
-        const args = message.content.slice(PREFIX.length).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
-        const command = client.commands.get(commandName);
-
-        if (!command) return;
-
-        // Object Context thay thế cho Interaction (rất gọn nhẹ)
-        const context = {
-            member: message.member,
-            guild: message.guild,
-            channel: message.channel,
-            user: message.author,
-            
-            // Các phương thức thay thế cho Slash Command
-            reply: async (options) => message.reply(options),
-            editReply: async (options) => message.channel.send(options),
-            
-            // Xử lý args cho các lệnh cũ
-            options: {
-                getMember: () => message.mentions.members.first() || message.member,
-                getString: (name) => args.join(' '),
-                getUser: () => message.mentions.users.first(),
-                getInteger: () => parseInt(args[0]) || 0
-            }
-        };
-
+    name: 'help',
+    async execute(interaction, client, args) {
         try {
-            // Thực thi lệnh. 
-            // Lưu ý: Nếu lệnh trong file command yêu cầu deferReply, 
-            // ta cần một lớp "bọc" hoặc sửa file command đó.
-            await command.execute(context, null, client);
+            // args format: [action, page, category]
+            const action = args[0]; // 'next' or 'back'
+            const currentPage = parseInt(args[1]) || 1;
+            const category = args[2] || 'help-all-commands';
+
+            const newPage = action === 'next' ? currentPage + 1 : currentPage - 1;
+
+            let result;
+            if (category === 'help-all-commands') {
+                result = await getAllCommandsEmbedAndPageCount(newPage, client);
+            } else {
+                result = await getCategoryEmbedAndPageCount(category, newPage, client);
+            }
+
+            const { embed, totalPages } = result;
+            const row = createHelpPaginationButtons(newPage, totalPages, category);
+
+            await interaction.editReply({
+                embeds: [embed],
+                components: [row]
+            });
         } catch (error) {
-            logger.error(`Error executing prefix command ${commandName}:`, error);
-            message.reply('❌ Có lỗi xảy ra khi thực hiện lệnh này.');
+            console.error('Error in help button handler:', error);
+            await interaction.editReply({ content: '❌ An error occurred while updating the help menu.' });
         }
     }
 };
