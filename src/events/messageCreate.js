@@ -10,43 +10,38 @@ export default {
 
         const args = message.content.slice(PREFIX.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
-
         const command = client.commands.get(commandName);
 
-        if (command) {
-            // Enhanced fakeInteraction to prevent errors with missing methods
-            const fakeInteraction = {
-                member: message.member,
-                guild: message.guild,
-                channel: message.channel,
-                user: message.author,
-                
-                // Essential Slash Command methods
-                reply: async (content) => message.reply(content),
-                deferReply: async () => {}, // Prevents "deferReply is not a function" error
-                editReply: async (content) => message.channel.send(content),
-                followUp: async (content) => message.channel.send(content),
-                
-                // Properties often checked by commands
-                deferred: false,
-                replied: false,
-                
-                options: {
-                    getMember: (name) => message.mentions.members.first() || message.member,
-                    getString: (name) => args.join(' '),
-                    getUser: (name) => message.mentions.users.first(),
-                    getChannel: (name) => message.mentions.channels.first(),
-                    getInteger: (name) => parseInt(args[0]) || 0
-                }
-            };
+        if (!command) return;
 
-            try {
-                await command.execute(fakeInteraction);
-            } catch (error) {
-                // Log the SPECIFIC error to your terminal
-                logger.error(`Error executing ${commandName}:`, error);
-                message.reply('An error occurred. Check terminal for details.');
+        // Object Context thay thế cho Interaction (rất gọn nhẹ)
+        const context = {
+            member: message.member,
+            guild: message.guild,
+            channel: message.channel,
+            user: message.author,
+            
+            // Các phương thức thay thế cho Slash Command
+            reply: async (options) => message.reply(options),
+            editReply: async (options) => message.channel.send(options),
+            
+            // Xử lý args cho các lệnh cũ
+            options: {
+                getMember: () => message.mentions.members.first() || message.member,
+                getString: (name) => args.join(' '),
+                getUser: () => message.mentions.users.first(),
+                getInteger: () => parseInt(args[0]) || 0
             }
+        };
+
+        try {
+            // Thực thi lệnh. 
+            // Lưu ý: Nếu lệnh trong file command yêu cầu deferReply, 
+            // ta cần một lớp "bọc" hoặc sửa file command đó.
+            await command.execute(context, null, client);
+        } catch (error) {
+            logger.error(`Error executing prefix command ${commandName}:`, error);
+            message.reply('❌ Có lỗi xảy ra khi thực hiện lệnh này.');
         }
     }
 };
