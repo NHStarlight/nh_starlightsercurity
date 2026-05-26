@@ -10,7 +10,6 @@ const __dirname = path.dirname(__filename);
 
 const CATEGORY_SELECT_ID = "help-category-select";
 const ALL_COMMANDS_ID = "help-all-commands";
-const BUG_REPORT_BUTTON_ID = "help-bug-report";
 
 const CATEGORY_ICONS = {
     Core: "ℹ️", Moderation: "🛡️", Fun: "🎮", Leveling: "📊", Utility: "🔧",
@@ -34,9 +33,7 @@ export async function createInitialHelpMenu(client) {
         }),
     ];
 
-    // SỬA LỖI Ở ĐÂY: Kiểm tra client.user tồn tại hay chưa
     const botName = client?.user?.username || "Starlight Security";
-    
     const embed = createEmbed({
         title: `🤖 ${botName} Help Center`,
         description: "Welcome! Here is the list of available modules.",
@@ -54,10 +51,11 @@ export async function createInitialHelpMenu(client) {
     embed.setFooter({ text: "Starlight Security | Secured by Dev" });
     embed.setTimestamp();
 
+    // Dùng ButtonStyle.Link để mở profile trực tiếp mà không gây lỗi Interaction
     const bugReportButton = new ButtonBuilder()
-        .setCustomId(BUG_REPORT_BUTTON_ID)
         .setLabel("Contact Developer")
-        .setStyle(ButtonStyle.Primary);
+        .setStyle(ButtonStyle.Link)
+        .setURL("https://discord.com/users/1198136184526864475");
 
     const selectRow = createSelectMenu(CATEGORY_SELECT_ID, "Select a category", options);
     const buttonRow = new ActionRowBuilder().addComponents([bugReportButton]);
@@ -71,7 +69,7 @@ export default {
         .setDescription("Displays the help menu"),
     
     async execute(interaction, guildConfig, client) {
-        // Nếu không có client truyền vào từ interaction, lấy từ interaction.client
+        // Lấy client an toàn
         const activeClient = client || interaction.client;
         
         await interaction.deferReply({ ephemeral: true });
