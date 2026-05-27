@@ -33,6 +33,11 @@ export default {
         try {
             const target = interaction.options.getUser("target");
             const guildId = interaction.guildId;
+            
+            // Validate target
+            if (!target) {
+                throw new Error("Please specify a user to check warnings for.");
+            }
 
             
             const validWarnings = await WarningService.getWarnings(guildId, target.id);
@@ -57,13 +62,19 @@ export default {
 
             const warningFields = validWarnings
                 .map((w, i) => {
-                    const discordTimestamp = Math.floor(w.timestamp / 1000);
-                    return {
-                        name: `[#${i + 1}] Reason: ${w.reason.substring(0, 100)}`,
-                        value: `**Moderator:** <@${w.moderatorId}>\n**Date:** <t:${discordTimestamp}:F> (<t:${discordTimestamp}:R>)`,
-                        inline: false,
-                    };
+                    try {
+                        const discordTimestamp = Math.floor(w.timestamp / 1000);
+                        return {
+                            name: `[#${i + 1}] Reason: ${w.reason ? w.reason.substring(0, 100) : "No reason"}`,
+                            value: `**Moderator:** <@${w.moderatorId}>\n**Date:** <t:${discordTimestamp}:F> (<t:${discordTimestamp}:R>)`,
+                            inline: false,
+                        };
+                    } catch (err) {
+                        logger.warn(`Error processing warning ${i + 1}:`, err);
+                        return null;
+                    }
                 })
+                .filter(f => f !== null)
                 .slice(0, 25);
 
             embed.addFields(warningFields);

@@ -1,10 +1,8 @@
-import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
-
-
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 // Duration parser for prefix commands
@@ -42,37 +40,38 @@ const durationChoices = [
     { name: "2 weeks (2w)", value: 20160 },
     { name: "1 month (1M)", value: 43200 },
 ];
+
 export default {
     data: new SlashCommandBuilder()
-        .setName("timeout")
-        .setDescription("Timeout a user for a specific duration.")
+        .setName("mute")
+        .setDescription("Mute a user for a specific duration.")
         .addUserOption((option) =>
             option
                 .setName("target")
-                .setDescription("User to timeout")
+                .setDescription("User to mute")
                 .setRequired(true),
         )
         .addIntegerOption(
             (option) =>
                 option
                     .setName("duration")
-                    .setDescription("Duration of the timeout")
+                    .setDescription("Duration of the mute")
                     .setRequired(true)
-.addChoices(...durationChoices),
+                    .addChoices(...durationChoices),
         )
         .addStringOption((option) =>
-            option.setName("reason").setDescription("Reason for the timeout"),
+            option.setName("reason").setDescription("Reason for the mute"),
         )
-.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
     category: "moderation",
 
     async execute(interaction, config, client) {
         const deferSuccess = await InteractionHelper.safeDefer(interaction);
         if (!deferSuccess) {
-            logger.warn(`Timeout interaction defer failed`, {
+            logger.warn(`Mute interaction defer failed`, {
                 userId: interaction.user.id,
                 guildId: interaction.guildId,
-                commandName: 'timeout'
+                commandName: 'mute'
             });
             return;
         }
@@ -82,7 +81,7 @@ export default {
                 throw new TitanBotError(
                     "User lacks permission",
                     ErrorTypes.PERMISSION,
-                    "You need the `Moderate Members` permission to set a timeout."
+                    "You need the `Moderate Members` permission to set a mute."
                 );
             }
 
@@ -110,22 +109,22 @@ export default {
                 throw new TitanBotError(
                     "Missing duration",
                     ErrorTypes.VALIDATION,
-                    "Please specify a duration (e.g., 2d, 1h, 30m) for the timeout."
+                    "Please specify a duration (e.g., 2d, 1h, 30m) for the mute."
                 );
             }
 
             if (targetUser.id === interaction.user.id) {
                 throw new TitanBotError(
-                    "Cannot timeout self",
+                    "Cannot mute self",
                     ErrorTypes.VALIDATION,
-                    "You cannot timeout yourself."
+                    "You cannot mute yourself."
                 );
             }
             if (targetUser.id === client.user.id) {
                 throw new TitanBotError(
-                    "Cannot timeout bot",
+                    "Cannot mute bot",
                     ErrorTypes.VALIDATION,
-                    "You cannot timeout the bot."
+                    "You cannot mute the bot."
                 );
             }
             if (!member) {
@@ -138,9 +137,9 @@ export default {
 
             if (!member.moderatable) {
                 throw new TitanBotError(
-                    "Cannot timeout member",
+                    "Cannot mute member",
                     ErrorTypes.PERMISSION,
-                    "I cannot timeout this user. They might have a higher role than me or you."
+                    "I cannot mute this user. They might have a higher role than me or you."
                 );
             }
 
@@ -155,7 +154,7 @@ export default {
                 client,
                 guild: interaction.guild,
                 event: {
-                    action: "Member Timed Out",
+                    action: "Member Muted",
                     target: `${targetUser.tag} (${targetUser.id})`,
                     executor: `${interaction.user.tag} (${interaction.user.id})`,
                     reason: `${reason}\nDuration: ${durationDisplay}`,
@@ -172,23 +171,20 @@ export default {
             await InteractionHelper.safeEditReply(interaction, {
                 embeds: [
                     successEmbed(
-                        `⏳ **Timed out** ${targetUser.tag} for ${durationDisplay}.`,
+                        `🔇 **Muted** ${targetUser.tag} for ${durationDisplay}.`,
                         `**Reason:** ${reason}\n**Case ID:** #${caseId}`,
                     ),
                 ],
             });
         } catch (error) {
-            logger.error('Timeout command error:', error);
+            logger.error('Mute command error:', error);
             await InteractionHelper.safeEditReply(interaction, {
                 embeds: [
                     errorEmbed(
-                        error.userMessage || "An unexpected error occurred during the timeout action. Please check my role permissions.",
+                        error.userMessage || "An unexpected error occurred during the mute action. Please check my role permissions.",
                     ),
                 ],
             });
         }
     }
 };
-
-
-

@@ -22,29 +22,48 @@ export default {
         }
 
         let amount = interaction.options.getInteger("amount") ?? 10;
+        
+        // Validate amount
+        if (!amount) {
+            return InteractionHelper.safeEditReply(interaction, {
+                embeds: [errorEmbed("Missing Parameter", "Please specify the amount of messages to delete.")],
+            });
+        }
 
-        if (amount > 100) amount = 100;
         if (amount < 1) amount = 1;
+        if (amount > 500) amount = 500; // Increased from 100 to 500
 
         const channel = interaction.channel;
 
         try {
-            const fetched = await channel.messages.fetch({ limit: amount + 1 });
-            const messagesToDelete = Array.from(fetched.values()).slice(1);
+            let deletedCount = 0;
+            let remaining = amount;
+            
+            // Purge in batches to handle more than 100 messages
+            while (remaining > 0) {
+                const batchSize = Math.min(remaining, 100);
+                const fetched = await channel.messages.fetch({ limit: batchSize + 1 });
+                const messagesToDelete = Array.from(fetched.values()).slice(1);
 
-            if (messagesToDelete.length === 0) {
+                if (messagesToDelete.length === 0) {
+                    break;
+                }
+
+                if (messagesToDelete.length === 1) {
+                    await messagesToDelete[0].delete();
+                    deletedCount += 1;
+                } else {
+                    const deleted = await channel.bulkDelete(messagesToDelete, true);
+                    deletedCount += deleted.size;
+                }
+                
+                remaining -= messagesToDelete.length;
+            }
+            
+            if (deletedCount === 0) {
                 return InteractionHelper.safeEditReply(interaction, {
                     embeds: [errorEmbed("No messages found", "There are no messages available to delete.")],
                 });
-            }
-
-            let deletedCount = 0;
-            if (messagesToDelete.length === 1) {
-                await messagesToDelete[0].delete();
-                deletedCount = 1;
-            } else {
-                const deleted = await channel.bulkDelete(messagesToDelete, true);
-                deletedCount = deleted.size;
             }
 
             await InteractionHelper.safeEditReply(interaction, {

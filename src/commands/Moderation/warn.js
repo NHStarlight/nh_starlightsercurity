@@ -42,12 +42,17 @@ export default {
 
                 const target = interaction.options.getUser("target");
                 const member = interaction.options.getMember("target");
-                const reason = interaction.options.getString("reason");
+                const reason = interaction.options.getString("reason") || "No reason";
                 const moderator = interaction.user;
                 const guildId = interaction.guildId;
 
                 if (!member) {
                     throw new Error("The target user is not currently in this server.");
+                }
+                
+                // Validate reason
+                if (!reason || reason.trim() === '') {
+                    throw new Error("Please provide a reason for the warning.");
                 }
 
                 
