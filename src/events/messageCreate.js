@@ -2,9 +2,9 @@ import { Events } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { getGuildConfig } from '../services/guildConfig.js';
 
-// Regex để nhận diện Discord mention syntax: <@123>, <@!123>, <@&123>, <#123>
+// Discord mention syntax: <@123>, <@!123>, <@&123>, <#123>
 const MENTION_REGEX = /^<[@#][!&]?\d+>$/;
-// Regex số nguyên thuần tuý (có thể âm)
+// Pure integer (for subcommand detection only — NOT filtered from getString)
 const INTEGER_REGEX = /^-?\d+$/;
 
 export default {
@@ -20,16 +20,19 @@ export default {
         const command = client.commands.get(commandName);
         if (!command) return;
 
-        // args là bản sao để các option method dùng chung không mutate nhau
         const args = [...rawArgs];
 
-        // Các arg không phải mention và không phải số nguyên (phần text thuần)
-        const textArgs = args.filter(a => !MENTION_REGEX.test(a) && !INTEGER_REGEX.test(a));
+        // Non-mention args — keep integers so "2 days", "2d", "60" all pass through getString intact
+        const nonMentionArgs = args.filter(a => !MENTION_REGEX.test(a));
 
-        // Nếu args[0] là subcommand (không phải mention, không phải số), các textArgs
-        // dùng cho getString sẽ bỏ qua nó để tránh subcommand lẫn vào reason/text
-        const firstArgIsSubcommand = args[0] && !MENTION_REGEX.test(args[0]) && !INTEGER_REGEX.test(args[0]);
-        const stringArgs = firstArgIsSubcommand ? textArgs.slice(1) : textArgs;
+        // Subcommand detection: args[0] is text (not a mention, not a pure integer)
+        // e.g.  nh!todo add task  → args[0]="add"  → isSubcommand = true
+        //       nh!ban @user reason → args[0]="<@123>" → isSubcommand = false
+        //       nh!purge 10        → args[0]="10"   → isSubcommand = false
+        const firstArgIsSubcommand = !!args[0] && !MENTION_REGEX.test(args[0]) && !INTEGER_REGEX.test(args[0]);
+
+        // stringArgs: everything that is not a mention, skip subcommand token if present
+        const stringArgs = firstArgIsSubcommand ? nonMentionArgs.slice(1) : nonMentionArgs;
 
         let _deferred = false;
         let _replied = false;
@@ -41,18 +44,12 @@ export default {
         };
 
         const fakeInteraction = {
-            // Marker cho lệnh tự phát hiện chế độ prefix
             _isPrefix: true,
-
-            // InteractionHelper.isInteractionValid() yêu cầu id là string
             id: `prefix-${message.id}`,
             createdTimestamp: message.createdTimestamp,
-
             guildId: message.guild.id,
             channelId: message.channel.id,
             commandName,
-
-            // type = 0 (không phải APPLICATION_COMMAND) để phân biệt với slash
             type: 0,
 
             member: message.member,
@@ -60,13 +57,13 @@ export default {
             channel: message.channel,
             user: message.author,
             client: client,
+            // memberPermissions for commands that check interaction.memberPermissions
+            memberPermissions: message.member.permissions,
 
             get deferred() { return _deferred; },
             get replied() { return _replied; },
 
-            deferReply: async (_opts) => {
-                _deferred = true;
-            },
+            deferReply: async (_opts) => { _deferred = true; },
 
             reply: async (content) => {
                 const opts = stripFlags(typeof content === 'string' ? { content } : content);
@@ -89,36 +86,30 @@ export default {
 
             deleteReply: async () => {},
 
+            // showModal cannot work in prefix mode — inform user to use slash command
+            showModal: async (_modal) => {
+                await message.reply('❌ This feature requires the slash command (`/`). Please use `/` version instead.');
+            },
+
+            // fetchReply returns the channel message (best approximation)
+            fetchReply: async () => message,
+
             options: {
-                /**
-                 * Trả về args[0] nếu nó là tên subcommand (không phải mention/số).
-                 * Ví dụ: nh!todo add task → "add"
-                 */
                 getSubcommand: () => firstArgIsSubcommand ? args[0] : null,
 
-                /**
-                 * Tìm số nguyên đầu tiên trong args.
-                 * Ví dụ: nh!timeout @user 60 reason → 60
-                 */
+                // Finds the first pure integer in args
                 getInteger: (_name) => {
                     const found = args.find(a => INTEGER_REGEX.test(a));
                     return found !== undefined ? parseInt(found, 10) : null;
                 },
 
-                /**
-                 * Tương tự getInteger nhưng cho số thực.
-                 */
+                // Finds the first float in args
                 getNumber: (_name) => {
                     const found = args.find(a => /^-?[\d.]+$/.test(a) && !isNaN(parseFloat(a)));
                     return found !== undefined ? parseFloat(found) : null;
                 },
 
-                /**
-                 * Trả về phần text thuần (bỏ mention và số), bỏ qua subcommand nếu có.
-                 * Ví dụ: nh!ban @user lý do ban → "lý do ban"
-                 * Ví dụ: nh!timeout @user 60 lý do → "lý do"
-                 * Ví dụ: nh!todo add tên công việc → "tên công việc"
-                 */
+                // Returns non-mention args as a string (integers included so "2 days", "30m" etc. survive)
                 getString: (_name) => stringArgs.join(' ') || null,
 
                 getUser: (_name) => message.mentions.users.first() ?? null,

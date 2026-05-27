@@ -26,6 +26,14 @@ export default {
             const user = interaction.options.getUser("target");
             const reason = interaction.options.getString("reason") || "No reason provided";
 
+            // Missing args guard
+            if (!user) {
+                return handleInteractionError(interaction,
+                    Object.assign(new Error("Please mention the user to ban.\nUsage: `nh!ban @user [reason]`"), { userMessage: "Please mention the user to ban.\nUsage: `nh!ban @user [reason]`" }),
+                    { subtype: 'missing_target' }
+                );
+            }
+
             if (user.id === interaction.user.id) {
                 throw new Error("You cannot ban yourself.");
             }

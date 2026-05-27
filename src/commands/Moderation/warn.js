@@ -1,25 +1,20 @@
-import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, MessageFlags } from 'discord.js';
-import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { errorEmbed, successEmbed } from '../../utils/embeds.js';
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { WarningService } from '../../services/warningService.js';
-import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+
 export default {
     data: new SlashCommandBuilder()
         .setName("warn")
         .setDescription("Warn a user")
-        .addUserOption((o) =>
-            o
-                .setName("target")
-                .setRequired(true)
-                .setDescription("User to warn"),
+        .addUserOption(o =>
+            o.setName("target").setRequired(true).setDescription("User to warn")
         )
-        .addStringOption((o) =>
-            o
-                .setName("reason")
-                .setRequired(true)
-                .setDescription("Reason for the warning"),
+        .addStringOption(o =>
+            o.setName("reason").setRequired(false).setDescription("Reason for the warning")
         )
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
     category: "moderation",
@@ -27,76 +22,90 @@ export default {
     async execute(interaction, config, client) {
         const deferSuccess = await InteractionHelper.safeDefer(interaction);
         if (!deferSuccess) {
-            logger.warn(`Warn interaction defer failed`, {
-                userId: interaction.user.id,
-                guildId: interaction.guildId,
-                commandName: 'warn'
-            });
+            logger.warn('Warn defer failed', { userId: interaction.user.id });
             return;
         }
 
         try {
-                if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-                    throw new Error("You need the `Moderate Members` permission to issue warnings.");
-                }
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+                throw new TitanBotError(
+                    "User lacks permission",
+                    ErrorTypes.PERMISSION,
+                    "You need the `Moderate Members` permission to issue warnings."
+                );
+            }
 
-                const target = interaction.options.getUser("target");
-                const member = interaction.options.getMember("target");
-                const reason = interaction.options.getString("reason");
-                const moderator = interaction.user;
-                const guildId = interaction.guildId;
+            const target = interaction.options.getUser("target");
 
-                if (!member) {
-                    throw new Error("The target user is not currently in this server.");
-                }
+            // Missing args guard
+            if (!target) {
+                throw new TitanBotError(
+                    "Missing target",
+                    ErrorTypes.USER_INPUT,
+                    "Please mention the user to warn.\nUsage: `nh!warn @user [reason]`"
+                );
+            }
 
-                
-                const result = await WarningService.addWarning({
-                    guildId,
-                    userId: target.id,
-                    moderatorId: moderator.id,
+            const member = interaction.options.getMember("target");
+            // Default reason instead of null
+            const reason = interaction.options.getString("reason") || "No reason provided";
+            const moderator = interaction.user;
+            const guildId = interaction.guildId;
+
+            if (!member) {
+                throw new TitanBotError(
+                    "Target not found",
+                    ErrorTypes.USER_INPUT,
+                    "That user is not currently in this server."
+                );
+            }
+
+            const result = await WarningService.addWarning({
+                guildId,
+                userId: target.id,
+                moderatorId: moderator.id,
+                reason,
+                timestamp: Date.now()
+            });
+
+            if (!result.success) {
+                throw new Error("Failed to store warning in database");
+            }
+
+            const totalWarns = result.totalCount;
+
+            await logModerationAction({
+                client,
+                guild: interaction.guild,
+                event: {
+                    action: "User Warned",
+                    target: `${target.tag} (${target.id})`,
+                    executor: `${moderator.tag} (${moderator.id})`,
                     reason,
-                    timestamp: Date.now()
-                });
-
-                if (!result.success) {
-                    throw new Error("Failed to store warning in database");
-                }
-
-                const totalWarns = result.totalCount;
-
-                await logModerationAction({
-                    client,
-                    guild: interaction.guild,
-                    event: {
-                        action: "User Warned",
-                        target: `${target.tag} (${target.id})`,
-                        executor: `${moderator.tag} (${moderator.id})`,
-                        reason,
-                        metadata: {
-                            userId: target.id,
-                            moderatorId: moderator.id,
-                            totalWarns,
-                            warningNumber: totalWarns,
-                            warningId: result.id
-                        }
+                    metadata: {
+                        userId: target.id,
+                        moderatorId: moderator.id,
+                        totalWarns,
+                        warningNumber: totalWarns,
+                        warningId: result.id
                     }
-                });
+                }
+            });
 
-                await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed(
-                            `⚠️ **Warned** ${target.tag}`,
-                            `**Reason:** ${reason}\n**Total Warns:** ${totalWarns}`,
-                        ),
-                    ],
-                });
+            await InteractionHelper.safeEditReply(interaction, {
+                embeds: [
+                    successEmbed(
+                        `⚠️ **Warned** ${target.tag}`,
+                        `**Reason:** ${reason}\n**Total Warns:** ${totalWarns}`
+                    )
+                ]
+            });
+
         } catch (error) {
             logger.error('Warn command error:', error);
-            await handleInteractionError(interaction, error, { subtype: 'warn_failed' });
+            await InteractionHelper.safeEditReply(interaction, {
+                embeds: [errorEmbed(error.userMessage || "An unexpected error occurred.")]
+            });
         }
     }
 };
-
-
-

@@ -36,7 +36,15 @@ export default {
       const member = interaction.options.getMember("target");
       const reason = interaction.options.getString("reason") || "No reason provided";
 
-      
+      // Missing args guard
+      if (!targetUser) {
+        throw new TitanBotError(
+          "Missing target",
+          ErrorTypes.USER_INPUT,
+          "Please mention the user to kick.\nUsage: `nh!kick @user [reason]`"
+        );
+      }
+
       if (targetUser.id === interaction.user.id) {
         throw new TitanBotError(
           "Cannot kick self",
