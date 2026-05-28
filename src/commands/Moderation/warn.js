@@ -3,6 +3,7 @@ import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { WarningService } from '../../services/warningService.js';
+import { PunishmentService } from '../../services/punishmentService.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
@@ -63,6 +64,17 @@ export default {
                 }
 
                 const totalWarns = result.totalCount;
+
+                // Record punishment to prevent evading
+                await PunishmentService.recordPunishment({
+                    guildId,
+                    userId: target.id,
+                    moderatorId: moderator.id,
+                    punishmentType: 'warn',
+                    reason
+                }).catch(err => {
+                    logger.warn('Failed to record warn punishment:', err);
+                });
 
                 await logModerationAction({
                     client,

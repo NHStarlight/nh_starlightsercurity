@@ -3,7 +3,7 @@ import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
-
+import { PunishmentService } from '../../services/punishmentService.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
@@ -209,6 +209,20 @@ export default {
 
             const durationMs = durationMinutes * 60 * 1000;
             await member.timeout(durationMs, reason);
+
+            // Record punishment to prevent evading
+            const expiresAt = new Date(Date.now() + durationMs);
+            await PunishmentService.recordPunishment({
+                guildId: interaction.guildId,
+                userId: targetUser.id,
+                moderatorId: interaction.user.id,
+                punishmentType: 'timeout',
+                reason,
+                durationMinutes,
+                expiresAt
+            }).catch(err => {
+                logger.warn('Failed to record timeout punishment:', err);
+            });
 
             const durationDisplay =
                 durationChoices.find((c) => c.value === durationMinutes)
