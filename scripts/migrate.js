@@ -193,6 +193,26 @@ const createTables = async (client) => {
       target_id VARCHAR(255),
       reason TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    
+    `CREATE TABLE IF NOT EXISTS punishment_records (
+      id SERIAL PRIMARY KEY,
+      guild_id VARCHAR(255) NOT NULL,
+      user_id VARCHAR(255) NOT NULL,
+      moderator_id VARCHAR(255) NOT NULL,
+      punishment_type VARCHAR(50) NOT NULL,
+      reason TEXT,
+      duration_minutes INT,
+      expires_at TIMESTAMP,
+      status VARCHAR(50) DEFAULT 'active',
+      appeal_status VARCHAR(50),
+      appeal_reason TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_punishment_user (user_id, guild_id),
+      INDEX idx_punishment_guild (guild_id),
+      INDEX idx_punishment_status (status)
     )`
   ];
 
@@ -217,6 +237,9 @@ const createIndexes = async (client) => {
     'CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id)',
     'CREATE INDEX IF NOT EXISTS idx_giveaways_guild ON giveaways(guild_id)',
     'CREATE INDEX IF NOT EXISTS idx_audit_logs_guild ON audit_logs(guild_id)',
+    'CREATE INDEX IF NOT EXISTS idx_punishment_user ON punishment_records(user_id, guild_id)',
+    'CREATE INDEX IF NOT EXISTS idx_punishment_guild ON punishment_records(guild_id)',
+    'CREATE INDEX IF NOT EXISTS idx_punishment_status ON punishment_records(status)',
   ];
 
   for (const index of indexes) {
