@@ -6,7 +6,7 @@ import { createPrefixInteraction, parsePrefixContent } from '../utils/prefixComm
 import { enforceAbuseProtection, formatCooldownDuration } from '../utils/abuseProtection.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
 import { MessageFlags } from 'discord.js';
-import { getFromDb } from '../utils/database.js';
+import { getFromDb, setInDb } from '../utils/database.js';
 
 const DEFAULT_PREFIX = BotConfig.prefix || 'nh!';
 
@@ -35,6 +35,62 @@ export default {
     async execute(message, client) {
         if (message.author.bot || !message.guild) return;
 
+        // Check and remove AFK status for message author
+        try {
+            const afkKey = `afk:${message.guildId}:${message.author.id}`;
+            const afkMentionsKey = `afk_mentions:${message.guildId}:${message.author.id}`;
+            const afkData = await getFromDb(afkKey);
+            
+            if (afkData) {
+                // Get mention history
+                const mentionHistory = await getFromDb(afkMentionsKey);
+                
+                // Remove AFK from database
+                await setInDb(afkKey, null);
+                await setInDb(afkMentionsKey, null);
+                
+                // Remove [AFK] from nickname
+                try {
+                    if (message.member?.nickname?.includes('[AFK]')) {
+                        const newNick = message.member.nickname.replace('[AFK] ', '');
+                        await message.member.setNickname(newNick).catch(() => {});
+                    }
+                } catch (err) {
+                    logger.warn('Could not update nickname for AFK removal:', err);
+                }
+                
+                // Build notification message
+                const currentTime = Date.now();
+                const afkDuration = formatAfkDuration(currentTime - afkData.timestamp);
+                
+                let notificationContent = `✅ Welcome back! You have been AFK for **${afkDuration}**`;
+                
+                if (mentionHistory && mentionHistory.channels && mentionHistory.channels.length > 0) {
+                    const channelList = mentionHistory.channels.map(c => `<#${c}>`).join(', ');
+                    notificationContent += `\n\n💬 You were mentioned in: ${channelList}`;
+                }
+                
+                // Notify that user is no longer AFK
+                try {
+                    await message.reply({
+                        content: notificationContent,
+                        flags: MessageFlags.Ephemeral,
+                    }).catch(() => {});
+                } catch (err) {
+                    logger.warn('Failed to send AFK removal notification:', err);
+                }
+                
+                logger.info(`User removed from AFK`, {
+                    userId: message.author.id,
+                    guildId: message.guildId,
+                    username: message.author.tag,
+                    duration: afkDuration
+                });
+            }
+        } catch (err) {
+            logger.warn(`Failed to check/remove AFK status:`, err);
+        }
+
         // Check for AFK mentions
         if (message.mentions.has(client.user.id) || message.mentions.users.size > 0) {
             const afkNotifications = [];
@@ -51,6 +107,21 @@ export default {
                         afkNotifications.push(
                             `💤 **${afkData.username}** has been AFK for **${afkDuration}** | Reason: ${afkData.message}`
                         );
+                        
+                        // Store mention history for when user returns
+                        const afkMentionsKey = `afk_mentions:${message.guildId}:${mentionedUser.id}`;
+                        const mentionHistory = await getFromDb(afkMentionsKey) || { channels: [] };
+                        
+                        if (!mentionHistory.channels) {
+                            mentionHistory.channels = [];
+                        }
+                        
+                        // Add channel if not already in list
+                        if (!mentionHistory.channels.includes(message.channelId)) {
+                            mentionHistory.channels.push(message.channelId);
+                        }
+                        
+                        await setInDb(afkMentionsKey, mentionHistory);
                     }
                 } catch (err) {
                     logger.warn(`Failed to check AFK status for ${mentionedUser.tag}:`, err);
